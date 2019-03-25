@@ -4,4 +4,8 @@ README.txt
 *.elf
 *.hex
 *~
-host/host
+**/_Makefile
+host_build/*
+!host_build/Makefile
+firmware_build/*
+!firmware_build/Makefile

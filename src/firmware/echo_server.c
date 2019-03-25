@@ -5,7 +5,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "avr_common/uart.h" // this includes the printf and initializes it
+#include "avr_common/uart.h"
 #include "avr_common/i2c.h"
 #include "avr_common/i2c_communication.h"
 

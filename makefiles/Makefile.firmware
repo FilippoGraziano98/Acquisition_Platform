@@ -1,11 +1,10 @@
-# set this to false to disable sonars in firmware
 CC=avr-gcc
-AS=avr-gcc
-INCLUDE_DIRS=-I. -I../avr_common
+SRCDIR = ../src/firmware
+INCLUDE_DIRS=-I../src/common -I$(SRCDIR)
 CC_OPTS=-Wall --std=gnu99 -DF_CPU=16000000UL -O3 -funsigned-char -funsigned-bitfields  -fshort-enums -Wall -Wstrict-prototypes -mmcu=atmega2560 $(INCLUDE_DIRS)  -D__AVR_3_BYTE_PC__
 AS_OPTS=-x assembler-with-cpp $(CC_OPTS)
 
-AVRDUDE=avrdude
+AVRDUDE = avrdude
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
 AVRDUDE_PORT = /dev/ttyACM0    # programmer connected to serial device
@@ -19,22 +18,30 @@ AVRDUDE_FLAGS += $(AVRDUDE_ERASE_COUNTER)
 AVRDUDE_FLAGS += -D -q -V -C /usr/share/arduino/hardware/tools/avr/../avrdude.conf
 AVRDUDE_FLAGS += -c wiring
 
+
+
+
+HEADERS = uart.h uart_packets.h i2c.h i2c_communication.h
+OBJS = uart.o uart_packets.o i2c.o i2c_communication.o
+
+BINS = main.elf
+FIRMWARE = main.hex
+
+
 .phony:	clean all
 
-all:	$(BINS) 
+all: $(BINS) $(FIRMWARE)
 
-#common objects
-%.o:	%.c 
+%.o: $(SRCDIR)/%.c
 	$(CC) $(CC_OPTS) -c  -o $@ $<
 
-%.o:	%.s 
-	$(AS) $(AS_OPTS) -c  -o $@ $<
+%.o: $(SRCDIR)/avr_common/%.c
+	$(CC) $(CC_OPTS) -c  -o $@ $<
 
-%.elf:	%.o $(OBJS)
+%.elf: %.o $(OBJS)
 	$(CC) $(CC_OPTS) -o $@ $< $(OBJS) $(LIBS)
 
-
-%.hex:	%.elf
+%.hex: %.elf
 	avr-objcopy -O ihex -R .eeprom $< $@
 	$(AVRDUDE) $(AVRDUDE_FLAGS) -U flash:w:$@:i #$(AVRDUDE_WRITE_EEPROM) 
 

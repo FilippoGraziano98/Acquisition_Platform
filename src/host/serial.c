@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <errno.h>
 #include <string.h>
 
@@ -103,4 +104,66 @@ int serial_set_interface_attribs(int fd, int speed, int parity) {
 	}
 	
 	return 0;
+}
+
+int serial_sleep_until_input(int fd, unsigned int timeout_secs) {
+  fd_set set;
+  struct timeval timeout;
+
+  /* Initialize the file descriptor set. */
+  FD_ZERO(&set);
+  FD_SET(fd, &set);
+
+  /* Initialize the timeout data structure. */
+  timeout.tv_sec = timeout_secs;
+  timeout.tv_usec = 0;
+
+  /* select returns 0 if timeout, 1 if input available, -1 if error. */
+  return select(FD_SETSIZE, &set, NULL, NULL, &timeout);
+}
+
+int serial_send(int fd, uint8_t* buf, uint8_t size) {
+	int res, sent=0;
+	
+	res = write(fd, buf, size);
+	if(res == -1)
+		return -1;
+	else
+		sent += res;
+	
+	//TODO this may loop indefintely if trying to read size higher than available
+	while(sent < size) {
+		res = write(fd, buf+sent, size-sent);
+		if(res == -1)
+			return -1;
+		else
+			sent += res;
+	}
+	
+	return sent;
+}
+
+int serial_receive(int fd, uint8_t* buf, uint8_t size) {
+	int res;
+	
+	//sleeps until data received
+	while(1) {
+		res = serial_sleep_until_input(fd, 1);
+		
+		if ( res == 1 )
+			break;
+		else if ( res == -1 )
+			return -1; //error waiting for input
+	}
+	
+	int recv = read(fd, buf, size);
+	//TODO this may loop indefintely if trying to read size higher than available
+	while(recv < size)
+		recv += read(fd, buf+recv, size-recv);
+	
+	return recv;
+}
+
+int serial_close(int fd) {
+	return close(fd);
 }
