@@ -4,6 +4,8 @@ README.txt
 *.elf
 *.hex
 *~
+*_old.c
+*_old.h
 **/_Makefile
 host_build/*
 !host_build/Makefile

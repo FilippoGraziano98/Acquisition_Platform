@@ -2,97 +2,148 @@
 #include <avr/interrupt.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <util/atomic.h>
 
 #include "uart.h"
 
-// baud rate regs
-#define UBRRnH UBRR0H
-#define UBRRnL UBRR0L
+static UART uart0;
 
-//data reg
-#define UDRn UDR0
-
-// control regs
-#define UCSRnA UCSR0A
-#define UCSRnB UCSR0B
-#define UCSRnC UCSR0C
-
-// UCSRnA flags
-#define UDREn UDRE0
-#define RXCn RXC0
-// UCSRnB flags
-#define RXENn RXEN0
-#define TXENn TXEN0
-#define RXCIEn RXCIE0
-// UCSRnC flags
-#define USBSn USBS0
-#define UCSZn1 UCSZ01
-#define UCSZn0 UCSZ00
+static void UART_buffers_init(void) {
+	//initialize rx_buffer
+	uart0.rx_start = 0;
+	uart0.rx_end = 0;
+	uart0.rx_size = 0;
+	
+	//initialize tx_buffer
+	uart0.tx_start = 0;
+	uart0.tx_end = 0;
+	uart0.tx_size = 0;
+}
 
 void UART_Init(void){
+	//initializes the global buffers
+	UART_buffers_init();
+
+	uart0.baudrate = UART_BAUD_RATE;
+
 	// Clear the USART status register
-	//UCSRnA = 0x00;
+	//UCSR0A = 0x00;
 	
 	// Set baud rate
-	UBRRnH = (uint8_t)((UBRR)>>8);
-	UBRRnL = (uint8_t)UBRR;
+	UBRR0H = (uint8_t)((UBRR)>>8);
+	UBRR0L = (uint8_t)UBRR;
 	
 	// Enable receiver and transmitter
 		// RXCIE0 : RX Complete Interrupt Enable. Set to allow receive complete interrupts.
-	UCSRnB = (1<<RXENn)|(1<<TXENn);//|(1<<RXCIEn);
+	UCSR0B = (1<<RXEN0)|(1<<TXEN0)|(1<<RXCIE0);
 	// Set frame format: 8data, 2stop bit
-	UCSRnC = (1<<UCSZn1)|(1<<UCSZn0);
+	UCSR0C = (1<<UCSZ01)|(1<<UCSZ00);
+	
+	sei();
 }
 
+//NOTE
+//ATOMIC_BLOCK creates a block of code
+	//guaranteed to be executed atomically.
+	//Upon entering the block the Global Interrupt Status flag in SREG
+	//is disabled, and re-enabled upon exiting the block from any exit path.
+//ATOMIC_RESTORESTATE
+	//When used, it will cause the ATOMIC_BLOCK
+		//to restore the previous state of the SREG register,
+		//saved before the Global Interrupt Status flag bit was disabled.	 
+//ATOMIC_FORCEON (Grisetti's choice)
+	//When used, it will cause the ATOMIC_BLOCK
+		//to force the state of the SREG register on exit,
+		//enabling the Global Interrupt Status flag bit.
+
 void UART_TxByte(uint8_t data) {
-	/* Wait for empty transmit buffer */
-	while ( !( UCSRnA & (1<<UDREn) ) );
-	/* Put data into buffer, sends the data */
-	UDRn = data;
+  // loops until there is some space in the buffer
+  while (uart0.tx_size >= UART_BUFFER_SIZE);
+
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+    uart0.tx_buffer[uart0.tx_end] = data;
+    uart0.tx_end++;
+    
+    //se alla fine del buffer circolare, lo riporto all'inizio
+		if (uart0.tx_end >= UART_BUFFER_SIZE)
+			uart0.tx_end = 0;
+		
+		uart0.tx_size++;
+  }
+  
+	UCSR0B |= (1<<UDRIE0); //activate buffer empty interrupt
 }
 
 uint8_t UART_RxByte(void) {
-	/* Wait for data to be received */
-	while ( !(UCSRnA & (1<<RXCn) ) );
-	/* Get and return received data from buffer */
-	return UDRn;
-}
-
-uint8_t UART_RxFlush(void) {
-	uint8_t dummy, count=0;
-	while ( UCSRnA & (1<<RXCn) ) {
-		dummy = UDRn;
-		count++;
-	}
-	return count;
-}
-
-uint8_t UART_TxString(uint8_t *buf) {
-  uint8_t* buf_start = buf; //beginning of buffer
-	while( *buf ) {
-		UART_TxByte(*buf);
-		buf++;
-	}
-	UART_TxByte(0x0);
-	return buf - buf_start;
-}
-
-uint8_t UART_RxString(uint8_t* buf) {
-  uint8_t* buf_start = buf; //beginning of buffer
+  // loops until there is some data in the buffer
+  while(uart0.rx_size == 0);
+	
+  uint8_t data;
   
-	char c;
-	while( 1 ) {
-		c = UART_RxByte();
-
-		if( (c==0) || (c=='\r') || (c=='\n') ) {
-			//read till enter key is pressed
-			*buf = 0;	//null terminate the string
-			break;
-		}
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+    data = uart0.rx_buffer[uart0.rx_start];
+		uart0.rx_start++;
 		
-		*buf = c;	//copy the char into string
-		buf++;		//and increment the pointer
+    //se alla fine del buffer circolare, lo riporto all'inizio
+		if (uart0.rx_start >= UART_BUFFER_SIZE)
+			uart0.rx_start = 0;
+		
+		uart0.rx_size--;
+  }
+  
+  return data;
+}
+
+//Receive Interrupt Handler
+ISR(USART0_RX_vect) {
+	//legge il nuovo byte da UDR0,
+		// e lo scrive in rx_buffer
+	
+  if (uart0.rx_size < UART_BUFFER_SIZE) {
+		uart0.rx_buffer[uart0.rx_end] = UDR0;
+  	uart0.rx_end++;
+  
+		//se alla fine del buffer circolare, lo riporto all'inizio
+		if (uart0.rx_end >= UART_BUFFER_SIZE)
+			uart0.rx_end = 0;
+	
+		uart0.rx_size++;
 	}
-	//UART_RxFlush(); //TODO RxFlush seems not working!!
-	return buf - buf_start;
+}
+
+//note in transmission data is put on UDR by user
+	//automatically moved to the Transmission Buffer
+	//when moved to the Transmission Buffer, UDRE is set
+		//because UDR ready to get next data
+	//when Transmission completed on the bus, TXC set
+
+//Transmit Complete (TXCn) Flag
+	//is set when the entire frame
+	//in the Transmit Shift Register has been shifted out
+	//and there are no new data
+	//currently present in the transmit buffer
+/*ISR(USART0_TX_vect) {*/
+/*	;*/
+/*}*/
+
+//Data Register Empty (UDRE0) Flag
+	//indicates whether the transmit buffer
+	//is ready to receive new data
+ISR(USART0_UDRE_vect) {	
+	//se buffer vuoto
+		// disactivate buffer empty interrupt
+	if( uart0.tx_size == 0 )
+		UCSR0B &= ~(1<<UDRIE0);
+	else {
+		//prende un byte da tx_buff
+			//e lo scrive su UDR0
+	  UDR0 = uart0.tx_buffer[uart0.tx_start];
+		uart0.tx_start++;
+	
+	  //se alla fine del buffer circolare, lo riporto all'inizio
+		if (uart0.tx_start >= UART_BUFFER_SIZE)
+			uart0.tx_start = 0;
+	
+		uart0.tx_size--;
+  }
 }

@@ -12,6 +12,8 @@
     var.header.seq=0;							\
   }																\
 
+#define MAX_PACKET_SIZE (sizeof(EchoPacket))
+
 #pragma pack(push, 1)
 
 //! sent from the pc to the robot causes

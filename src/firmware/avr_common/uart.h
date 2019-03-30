@@ -11,6 +11,24 @@
 // NOTE : F_CPU defined at compile time:
 	// -DF_CPU=16000000UL
 
+#include <stdio.h>
+#include "../../common/packets.h"
+#define UART_BUFFER_SIZE 8*MAX_PACKET_SIZE
+
+typedef struct UART {
+  int tx_buffer[UART_BUFFER_SIZE];
+  volatile uint8_t tx_start;
+  volatile uint8_t tx_end;
+  volatile uint8_t tx_size;
+
+  int rx_buffer[UART_BUFFER_SIZE];
+  volatile uint8_t rx_start;
+  volatile uint8_t rx_end;
+  volatile uint8_t rx_size;
+  
+  int baudrate;
+} UART;
+
 /*
  * initialize the UART at UART_BAUD_RATE baud rate
  */
@@ -18,36 +36,11 @@ void UART_Init(void);
 
 /*
  * transmit a char through UART module.
- *		It waits till previous char is transmitted (i.e. until UDRE is set),
- *		then the new byte to be transmitted is loaded into UDR.
  */
 void UART_TxByte(uint8_t data);
 
 /*
  * receive a char from UART module.
- *		It waits till a char is received (i.e.till RXC is set),
- *		then returns the received char.
+ *		@return : the received char.
  */
 uint8_t UART_RxByte(void);
-
-/*
- * reads the UDRn I/O location until the RXCn Flag is cleared
- *	i.e. flushes the receive buffer
- *		returns the number of bytes thrown away
- */
-uint8_t UART_RxFlush(void);
-
-/*
- *  transmit an ASCII string through UART.
- *		each a char is sent using UART_TxChar()
- *		returns the size of the string transmitted
- *	NOTE: sends a NULL terminated string (ending 0x00 included)
- */
-uint8_t UART_TxString(uint8_t* buf);
-
-/*
- *  receive an ASCII string through UART till the carriage_return / new_line / 0.
- *		returns the size of the string received
- *	NOTE: receives a NULL terminated string (ending 0x00 included)
- */
-uint8_t UART_RxString(uint8_t* buf);
