@@ -23,6 +23,11 @@ int main(int argc, char** argv) {
 		goto EXIT;
 	}
 	
+	while(1) {
+		Host_getGyroscopeData(host);
+		Host_printGyroscopeData(host);
+	}
+	
 	EXIT:
 		res = Host_destroy(host);
 		if( !res )

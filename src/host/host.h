@@ -8,10 +8,10 @@ typedef struct Host {
 	//uint8_t packet_buffer[PACKET_SIZE_MAX];
 	
 	//seq number of the latest packets received
-	uint16_t global_seq;
-	
+  uint16_t global_seq;
+  
 	//these are the system variables, updated by the serial communiction
-	EchoPacket sync_packet;
+  GyroscopePacket gyroscope_packet;
 } Host;
 
 /*
@@ -25,6 +25,19 @@ Host* Host_init(const char* device);
  * 	sends a few (cycles) EchoPacket testing serial connection
  */
 int Host_checkConnection(Host* host, int cycles);
+
+/*
+ * Host_getGyroscopeData :
+ *  asks the controller for update gyroscope_data
+ * 	and saves it in host->gyroscope_packet
+ */
+int Host_getGyroscopeData(Host* host);
+
+/*
+ * Host_printGyroscopeData :
+ *  prints to stdout gyroscope_data
+ */
+void Host_printGyroscopeData(Host* host);
 
 /*
  * Host_destroy :

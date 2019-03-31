@@ -3,7 +3,7 @@
 // UART : Universal Asynchronous Receiver/Transmitter
 
 // Baud Rate at which we want the serial to communicate
-#define UART_BAUD_RATE 38400
+#define UART_BAUD_RATE 57600
 
 // Baud Rate = F_CPU / (16*(UBRRn+1))
 	// 16 is beacuse we are in Asynchronous Normal Mode
@@ -16,17 +16,17 @@
 #define UART_BUFFER_SIZE 8*PACKET_MAX_SIZE
 
 typedef struct UART {
-  int tx_buffer[UART_BUFFER_SIZE];
+  uint8_t tx_buffer[UART_BUFFER_SIZE];
   volatile uint8_t tx_start;
   volatile uint8_t tx_end;
   volatile uint16_t tx_size;
 
-  int rx_buffer[UART_BUFFER_SIZE];
+  uint8_t rx_buffer[UART_BUFFER_SIZE];
   volatile uint8_t rx_start;
   volatile uint8_t rx_end;
   volatile uint16_t rx_size;
   
-  int baudrate;
+  uint16_t baudrate;
 } UART;
 
 /*

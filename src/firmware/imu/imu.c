@@ -4,8 +4,6 @@
 #include "imu_i2c.h"
 #include "imu.h"
 
-#include <stdio.h>
-
 // mg_data : Mxyz[0] = (double) mx * 1200 / 4096;
 /*MagnetometerData IMU_MagnetometerData() {*/
 /*	MagnetometerSensor mg_sens = IMU_ReadMagnetometer();*/
@@ -31,17 +29,16 @@
  *						and we read a 16-bits value in 2's complement (+/-)2^15 mV
  *					==>> sensitivity = 2^15 / 250
  */
-GyroscopeData IMU_GyroscopeData() {
+GyroscopeData IMU_GyroscopeData(void) {
 	GyroscopeSensor gyro_sens = IMU_ReadGyroscope();
 	
-	double gyro_sensitivity = (double)(1<<15) / 250;
-	printf("gyro_sens : %d\n",gyro_sensitivity);
+	float gyro_sensitivity = (float)(1<<15) / 250;
 	
 	GyroscopeData gyro_data;
 	
-	gyro_data.gyro_x = (double)gyro_sens.gyro_x / gyro_sensitivity;
-	gyro_data.gyro_y = gyro_sens.gyro_y / gyro_sensitivity;
-	gyro_data.gyro_z = gyro_sens.gyro_z / gyro_sensitivity;
+	gyro_data.gyro_x = (float)gyro_sens.gyro_x / gyro_sensitivity;
+	gyro_data.gyro_y = (float)gyro_sens.gyro_y / gyro_sensitivity;
+	gyro_data.gyro_z = (float)gyro_sens.gyro_z / gyro_sensitivity;
 	
 	return gyro_data;
 }

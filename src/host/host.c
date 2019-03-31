@@ -9,7 +9,7 @@
 #include "serial/serial_packets.h"
 
 
-#define SERIAL_SPEED 38400
+#define SERIAL_SPEED 57600
 #define SERIAL_PARITY 0
 
 Host* Host_init(const char* device) {
@@ -31,6 +31,9 @@ Host* Host_init(const char* device) {
 		return NULL;
 	}
 	
+	//initializes global packets memory
+	INIT_PACKET(host->gyroscope_packet, GYROSCOPE_PACKET_ID);
+	
 	//waits for controller to be ready
 	sleep(1);
 	
@@ -51,13 +54,25 @@ int Host_checkConnection(Host* host, int cycles) {
 		send_pkt.info = i;
 		serial_send_packet(host->serial_fd, (PacketHeader*)&send_pkt);
 		
-		
 		serial_receive_packet(host->serial_fd, (PacketHeader*)&recv_pkt);
 		
 		if( memcmp(&send_pkt, &recv_pkt, sizeof(EchoPacket)) !=0 )
 			return -1;
 	}
 	return 0;
+}
+
+int Host_getGyroscopeData(Host* host) {
+	//asks the controller for update gyroscope_data
+	serial_send_packet(host->serial_fd, (PacketHeader*)&(host->gyroscope_packet));
+	//saves it in host->gyroscope_packet
+	serial_receive_packet(host->serial_fd, (PacketHeader*)&(host->gyroscope_packet));
+	
+	return 0;
+}
+
+void Host_printGyroscopeData(Host* host) {
+	printf("[Gyroscope] x-axis: %f, y-axis: %f, z-axis: %f\n", host->gyroscope_packet.gyro_x, host->gyroscope_packet.gyro_y, host->gyroscope_packet.gyro_z);
 }
 
 int Host_destroy(Host* host) {

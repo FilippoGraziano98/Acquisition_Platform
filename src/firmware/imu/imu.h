@@ -1,25 +1,25 @@
 #pragma once
 
 typedef struct {
-	double magnet_x;
-	double magnet_y;
-	double magnet_z;	
+	float magnet_x;
+	float magnet_y;
+	float magnet_z;	
 } MagnetometerData;
 
 typedef struct {
-	double accel_x;
-	double accel_y;
-	double accel_z;
+	float accel_x;
+	float accel_y;
+	float accel_z;
 } AccellerometerData;
 
 typedef struct {
-	double gyro_x;
-	double gyro_y;
-	double gyro_z;
+	float gyro_x;
+	float gyro_y;
+	float gyro_z;
 } GyroscopeData;
 
 typedef struct {
-	double temperature;
+	float temperature;
 } TermometerData;
 
 MagnetometerData IMU_MagnetometerData(void);

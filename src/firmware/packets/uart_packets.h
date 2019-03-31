@@ -14,6 +14,7 @@ uint8_t UART_check_packet(void);
 /*
  * UART_send_packet :
  *		sends a packet on fd
+ * 	@returns : number of bytes sent
  */
 uint8_t UART_send_packet(PacketHeader* pkt);
 
@@ -21,5 +22,6 @@ uint8_t UART_send_packet(PacketHeader* pkt);
  * UART_receive_packet :
  *		receives a packet from fd, and stores it in an already initialized packet pkt (with id and size)
  *		if received packet is not of the correct id, an error will be generated
+ * 	@returns : number of bytes received
  */
 uint8_t UART_receive_packet(PacketHeader* pkt);

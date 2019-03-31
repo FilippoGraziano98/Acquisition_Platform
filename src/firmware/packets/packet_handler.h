@@ -1,11 +1,14 @@
 #pragma once
 #include "../../common/packets.h"
 
-typedef void(*PacketOpFunctionType)(PacketHeader* pkt);
+typedef uint8_t(*PacketOpFunctionType)(PacketHeader* pkt);
 
 //error conditions
 #define PACKET_ID_OUT_OF_RANGE -1
 #define PACKET_OP_NOT_IMPLEMENTED -2
+#define PACKET_OPS_VECTOR_CORRUPTED -3
+#define PACKET_SEND_INCOMPLETE -4
+
 //success
 #define PACKET_OP_SUCCESS 0
 
