@@ -21,8 +21,8 @@ AVRDUDE_FLAGS += -c wiring
 
 
 
-HEADERS = uart.h uart_packets.h i2c.h i2c_communication.h
-OBJS = uart.o uart_packets.o i2c.o i2c_communication.o
+HEADERS = uart.h i2c.h i2c_communication.h uart_packets.h packet_handler.h
+OBJS = uart.o i2c.o i2c_communication.o uart_packets.o packet_handler.o
 
 BINS = main.elf
 FIRMWARE = main.hex
@@ -36,6 +36,9 @@ all: $(BINS) $(FIRMWARE)
 	$(CC) $(CC_OPTS) -c  -o $@ $<
 
 %.o: $(SRCDIR)/avr_common/%.c
+	$(CC) $(CC_OPTS) -c  -o $@ $<
+
+%.o: $(SRCDIR)/packets/%.c
 	$(CC) $(CC_OPTS) -c  -o $@ $<
 
 %.elf: %.o $(OBJS)

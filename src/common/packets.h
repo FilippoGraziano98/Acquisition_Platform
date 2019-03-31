@@ -12,7 +12,10 @@
     var.header.seq=0;							\
   }																\
 
-#define MAX_PACKET_SIZE (sizeof(EchoPacket))
+#define PACKET_MAX_ID 16	//TODO check
+
+#define PACKET_MAX_SIZE (sizeof(EchoPacket))
+#define PACKET_MIN_SIZE (sizeof(EchoPacket))
 
 #pragma pack(push, 1)
 

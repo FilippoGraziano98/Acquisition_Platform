@@ -74,6 +74,10 @@ void UART_TxByte(uint8_t data) {
 	UCSR0B |= (1<<UDRIE0); //activate buffer empty interrupt
 }
 
+uint16_t UART_RxBufferSize(void) {
+	return uart0.rx_size;
+}
+
 uint8_t UART_RxByte(void) {
   // loops until there is some data in the buffer
   while(uart0.rx_size == 0);

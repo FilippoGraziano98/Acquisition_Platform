@@ -1,40 +1,43 @@
+#include "host.h"
+
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <string.h>
 
-#include "serial.h"
-#include "serial_packets.h"
-#include "../common/packets.h"
+#include "serial/serial.h"
+#include "serial/serial_packets.h"
 
-#define SERIAL_NAME "/dev/ttyACM0"
+
 #define SERIAL_SPEED 38400
 #define SERIAL_PARITY 0
 
-
-#define MAX_BUF 256
-
-
-
-int main(int argc, char** argv) {
+Host* Host_init(const char* device) {
 	int res;
-	int serial_fd = serial_open(SERIAL_NAME);
-	if ( serial_fd < 0 ) {
-		printf("[] Error in serial_open for SERIAL_NAME : %s\n", SERIAL_NAME);
-		return -1;
+	
+	Host* host = (Host*)malloc(sizeof(Host));
+	
+	host->serial_fd = serial_open(device);
+	if ( host->serial_fd < 0 ) {
+		printf("[Host_init] Error in serial_open for SERIAL_NAME : %s\n", device);
+		free(host);
+		return NULL;
 	}		
 	
-	res = serial_set_interface_attribs(serial_fd, SERIAL_SPEED, SERIAL_PARITY);
+	res = serial_set_interface_attribs(host->serial_fd, SERIAL_SPEED, SERIAL_PARITY);
 	if ( res < 0 ) {
-		printf("[] Error in serial_set_interface_attribs for SERIAL_SPEED : %d and SERIAL_PARITY : %d\n", SERIAL_SPEED, SERIAL_PARITY);
-		return -1;
+		printf("[Host_init] Error in serial_set_interface_attribs for SERIAL_SPEED : %d and SERIAL_PARITY : %d\n", SERIAL_SPEED, SERIAL_PARITY);
+		free(host);
+		return NULL;
 	}
-	
-	printf("[] Opened communication with controller on serial port : %s\n", SERIAL_NAME);
 	
 	//waits for controller to be ready
 	sleep(1);
 	
+	return host;
+}
+
+int Host_checkConnection(Host* host, int cycles) {
 	EchoPacket send_pkt;
 	INIT_PACKET(send_pkt, ECHO_PACKET_ID);
 	
@@ -42,23 +45,25 @@ int main(int argc, char** argv) {
 	INIT_PACKET(recv_pkt, ECHO_PACKET_ID);
 	
 	int i;
-	for(i=0; i<50; i++) {
+	for(i=0; i<cycles; i++) {
 		memset(&recv_pkt, 0, sizeof(EchoPacket));
 		
 		send_pkt.info = i;
-		serial_send_packet(serial_fd, (PacketHeader*)&send_pkt);
-		printf((char*)"[host] sent %d\n", send_pkt.info);
+		serial_send_packet(host->serial_fd, (PacketHeader*)&send_pkt);
 		
 		
-		serial_receive_packet(serial_fd, (PacketHeader*)&recv_pkt);
-		printf((char*)"[host] received %d\n", recv_pkt.info);
+		serial_receive_packet(host->serial_fd, (PacketHeader*)&recv_pkt);
 		
 		if( memcmp(&send_pkt, &recv_pkt, sizeof(EchoPacket)) !=0 )
-			printf("\t ERROR\n");
-		
-		printf("\n");
+			return -1;
 	}
+	return 0;
+}
+
+int Host_destroy(Host* host) {
+	int res;
+	res = close(host->serial_fd);
 	
-	serial_close(serial_fd);
-	printf("[] Closed communication with controller on serial port : %s\n", SERIAL_NAME);
+	free(host);
+	return res;
 }

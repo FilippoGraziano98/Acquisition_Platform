@@ -163,7 +163,3 @@ int serial_receive(int fd, uint8_t* buf, uint8_t size) {
 	
 	return recv;
 }
-
-int serial_close(int fd) {
-	return close(fd);
-}

@@ -13,34 +13,46 @@
 
 #include <stdio.h>
 #include "../../common/packets.h"
-#define UART_BUFFER_SIZE 8*MAX_PACKET_SIZE
+#define UART_BUFFER_SIZE 8*PACKET_MAX_SIZE
 
 typedef struct UART {
   int tx_buffer[UART_BUFFER_SIZE];
   volatile uint8_t tx_start;
   volatile uint8_t tx_end;
-  volatile uint8_t tx_size;
+  volatile uint16_t tx_size;
 
   int rx_buffer[UART_BUFFER_SIZE];
   volatile uint8_t rx_start;
   volatile uint8_t rx_end;
-  volatile uint8_t rx_size;
+  volatile uint16_t rx_size;
   
   int baudrate;
 } UART;
 
 /*
- * initialize the UART at UART_BAUD_RATE baud rate
+ * UART_Init :
+ * 	initialize the UART at UART_BAUD_RATE baud rate
  */
 void UART_Init(void);
 
 /*
- * transmit a char through UART module.
+ * UART_TxByte :
+ *  puts a byte in the transmit buffer
+ *		as soon as possible it will be transmitted
+ *			through the UART module
  */
 void UART_TxByte(uint8_t data);
 
 /*
- * receive a char from UART module.
- *		@return : the received char.
+ * UART_RxBufferSize :
+ *		@return : number of received bytes.
+ */
+uint16_t UART_RxBufferSize(void);
+
+/*
+ * UART_RxByte :
+ *  gets a byte from the receive buffer
+ *		(buffer populated automatically from UART module)
+ *		@return : the received byte.
  */
 uint8_t UART_RxByte(void);

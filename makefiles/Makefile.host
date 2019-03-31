@@ -3,9 +3,9 @@ INCLUDE_DIRS = -I../src/common -I../src/host/
 CC = gcc
 CCOPTS = -Wall -Ofast -std=gnu99 -Wstrict-prototypes $(INCLUDE_DIRS)
 
-HEADERS = serial.h serial_packets.h
-OBJS = serial.o serial_packets.o
-BINS = host
+HEADERS = host.h serial.h serial_packets.h
+OBJS = host.o serial.o serial_packets.o
+BINS = main
 
 .phony: clean all
 
@@ -17,8 +17,10 @@ all: $(BINS)
 %.o : ../src/host/%.c
 	$(CC) $(CCOPTS) -c -o $@  $<
 
+%.o : ../src/host/serial/%.c
+	$(CC) $(CCOPTS) -c -o $@  $<
 
-host: ../src/host/host.c $(OBJS)
+main: ../src/host/main.c $(OBJS)
 	$(CC) $(CCOPTS) -o $@ $^ $(LIBS)
 
 clean:

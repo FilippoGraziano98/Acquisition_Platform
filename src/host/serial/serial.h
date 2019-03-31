@@ -35,6 +35,3 @@ int serial_send(int fd, uint8_t* buf, uint8_t size);
  *      number of bytes received else.
  */
 int serial_receive(int fd, uint8_t* buf, uint8_t size);
-
-//closes the serial
-int serial_close(int fd);
