@@ -98,11 +98,11 @@ void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n,
 }
 
 void I2C_WriteBits(uint8_t device_address, uint8_t device_reg, uint8_t bit_mask, uint8_t new_bits) {
-	unsigned char old_value = I2C_ReadRegister(device_address, device_reg);
+	uint8_t old_value = I2C_ReadRegister(device_address, device_reg);
 	
 	// (old_value & ~bit_mask) to reset bits to change
 	// ( ... ) | (new_bits & mask) to get new values for the bits
-	unsigned char new_value = (old_value & ~bit_mask) | (new_bits & bit_mask);
+	uint8_t new_value = (old_value & ~bit_mask) | (new_bits & bit_mask);
 	
 	I2C_WriteRegister(device_address, device_reg, new_value);
 }

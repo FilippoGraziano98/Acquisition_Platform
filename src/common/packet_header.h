@@ -14,6 +14,6 @@ typedef uint16_t PacketSeq;
 typedef struct {
   PacketType type;  // type of the packet < PACKET_MAX_ID
   PacketSize size;  // size of the packet in bytes (PacketHeader included)
-  PacketSeq  seq;   // sequential number always increased
+  PacketSeq seq;		// sequential number always increased
 } PacketHeader;
 #pragma pack(pop)

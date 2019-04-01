@@ -106,7 +106,7 @@ int serial_set_interface_attribs(int fd, int speed, int parity) {
 	return 0;
 }
 
-int serial_sleep_until_input(int fd, unsigned int timeout_secs) {
+int serial_sleep_until_input(int fd, unsigned int timeout_secs, unsigned int timeout_usecs) {
   fd_set set;
   struct timeval timeout;
 
@@ -115,8 +115,8 @@ int serial_sleep_until_input(int fd, unsigned int timeout_secs) {
   FD_SET(fd, &set);
 
   /* Initialize the timeout data structure. */
-  timeout.tv_sec = timeout_secs;
-  timeout.tv_usec = 0;
+  timeout.tv_sec = timeout_secs;	//seconds
+  timeout.tv_usec = timeout_usecs;	//microseconds
 
   /* select returns 0 if timeout, 1 if input available, -1 if error. */
   return select(FD_SETSIZE, &set, NULL, NULL, &timeout);
@@ -148,7 +148,7 @@ int serial_receive(int fd, uint8_t* buf, uint8_t size) {
 	
 	//sleeps until data received
 	while(1) {
-		res = serial_sleep_until_input(fd, 1);
+		res = serial_sleep_until_input(fd, 1, 0);
 		
 		if ( res == 1 )
 			break;

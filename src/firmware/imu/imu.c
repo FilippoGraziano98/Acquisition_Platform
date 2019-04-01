@@ -32,13 +32,13 @@
 GyroscopeData IMU_GyroscopeData(void) {
 	GyroscopeSensor gyro_sens = IMU_ReadGyroscope();
 	
-	float gyro_sensitivity = (float)(1<<15) / 250;
+	float gyro_sensitivity = (uint16_t)(1<<15) / (float)250;
 	
 	GyroscopeData gyro_data;
 	
-	gyro_data.gyro_x = (float)gyro_sens.gyro_x / gyro_sensitivity;
-	gyro_data.gyro_y = (float)gyro_sens.gyro_y / gyro_sensitivity;
-	gyro_data.gyro_z = (float)gyro_sens.gyro_z / gyro_sensitivity;
+	gyro_data.gyro_x = (float)(gyro_sens.gyro_x) / gyro_sensitivity;
+	gyro_data.gyro_y = (float)(gyro_sens.gyro_y) / gyro_sensitivity;
+	gyro_data.gyro_z = (float)(gyro_sens.gyro_z) / gyro_sensitivity;
 	
 	return gyro_data;
 }

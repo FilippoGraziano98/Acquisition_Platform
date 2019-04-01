@@ -29,7 +29,7 @@ void IMU_Init(void){
 		//auto selects the best available clock source
 	I2C_WriteBits(IMU_DEVICE, PWR_MGMT_1, (1<<2)|(1<<1)|1, 0x01);
 		//disables sleep mode
-	I2C_WriteBits(IMU_DEVICE, PWR_MGMT_1, 1<<6, 1<<6);
+	I2C_WriteBits(IMU_DEVICE, PWR_MGMT_1, 1<<6, 0);
 	_delay_ms(10);
 		//sets all sensors to on
 	I2C_WriteBits(IMU_DEVICE, PWR_MGMT_2, (1<<5)|(1<<4)|(1<<3)|(1<<2)|(1<<1)|1, 0x00);

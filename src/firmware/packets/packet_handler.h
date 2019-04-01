@@ -1,7 +1,6 @@
 #pragma once
+#include "acquisition_platform.h"
 #include "../../common/packets.h"
-
-typedef uint8_t(*PacketOpFunctionType)(PacketHeader* pkt);
 
 //error conditions
 #define PACKET_ID_OUT_OF_RANGE -1
@@ -12,11 +11,20 @@ typedef uint8_t(*PacketOpFunctionType)(PacketHeader* pkt);
 //success
 #define PACKET_OP_SUCCESS 0
 
+typedef uint8_t(*PacketOpFunctionType)(PacketHeader* pkt);
+
+typedef struct PacketHandler {
+	AcquisitionPlatform* acq_pl;
+	PacketOpFunctionType packetOps_vector[PACKET_MAX_ID];
+} PacketHandler;
+
+
 /*
  * PacketHandler_Init :
- * 	populates the static vector of PacketOpFunctionType [packetOps_vector]
+ * 	initializes the private (defined in .c) packetHandler
+ * 		populating the static vector of PacketOpFunctionType [packetOps_vector]
  */
-void PacketHandler_init(void);
+void PacketHandler_init(AcquisitionPlatform* acq_pl);
 
 /* 
  * PacketHandler :

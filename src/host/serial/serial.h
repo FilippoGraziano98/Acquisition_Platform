@@ -9,12 +9,15 @@ int serial_set_interface_attribs(int fd, int speed, int parity);
 /*
  * serial_sleep_until_input
  *		sleeps until data us available on the serial or the timeout has elapsed
+ *			timeout can be (either or combination of the two):
+ *				timeout secs, in seconds
+ *				timeout_usecs, in microseconds
  *		@returns: 
  *		  0 if timeout,
  *		  1 if input available,
  *		 -1 if error.
  */
-int serial_sleep_until_input(int fd, unsigned int timeout_secs);
+int serial_sleep_until_input(int fd, unsigned int timeout_secs, unsigned int timeout_usecs);
 
 /*
  * serial_send

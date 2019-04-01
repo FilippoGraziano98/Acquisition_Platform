@@ -68,11 +68,13 @@ int Host_getGyroscopeData(Host* host) {
 	//saves it in host->gyroscope_packet
 	serial_receive_packet(host->serial_fd, (PacketHeader*)&(host->gyroscope_packet));
 	
+	host->global_seq = (host->global_seq > host->gyroscope_packet.header.seq) ? host->global_seq : host->gyroscope_packet.header.seq;
+	
 	return 0;
 }
 
 void Host_printGyroscopeData(Host* host) {
-	printf("[Gyroscope] x-axis: %f, y-axis: %f, z-axis: %f\n", host->gyroscope_packet.gyro_x, host->gyroscope_packet.gyro_y, host->gyroscope_packet.gyro_z);
+	printf("[Gyroscope %d] x-axis: %f, y-axis: %f, z-axis: %f\n", host->global_seq, host->gyroscope_packet.gyro_x, host->gyroscope_packet.gyro_y, host->gyroscope_packet.gyro_z);
 }
 
 int Host_destroy(Host* host) {
