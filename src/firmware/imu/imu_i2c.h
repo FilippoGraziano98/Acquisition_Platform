@@ -5,10 +5,11 @@
 /* DEVICE ADDRESS */
 #define AD0 0x68
 #define AD1 0x69 //if a second imu on the same i2c bus
-#define IMU_DEVICE AD0 // we are not using a second imu
+#define ACCELGYRO_DEVICE AD0 // we are not using a second imu
 
+#define MAGNET_DEVICE 0x0C
 
-/* DEVICE REGISTERS */
+/* ACCELGYRO_DEVICE REGISTERS */
 #define CONFIG 0x1A
 #define GYRO_CONFIG 0x1B
 #define ACCEL_CONFIG 0x1C
@@ -17,17 +18,6 @@
 #define INT_PIN_CFG 0X37
 #define PWR_MGMT_1 0x6B
 #define PWR_MGMT_2 0x6C
-
-#define CNTL1 0x0A
-
-//magnetometer
-#define HXL 0x03
-#define HXH 0x04
-#define HYL 0x05
-#define HYH 0x06
-#define HZL 0x07
-#define HZH 0x08
-#define ST2 0x09
 
 //accellerometer
 #define ACCEL_XOUT_H 0x3B
@@ -49,6 +39,18 @@
 #define TEMP_OUT_H 0x41
 #define TEMP_OUT_L 0x42
 
+/* MAGNET_DEVICE REGISTERS */
+#define CNTL1 0x0A
+
+//magnetometer
+#define HXL 0x03
+#define HXH 0x04
+#define HYL 0x05
+#define HYH 0x06
+#define HZL 0x07
+#define HZH 0x08
+#define ST2 0x09
+
 typedef struct {
 	int16_t magnet_x;
 	int16_t magnet_y;
@@ -59,7 +61,7 @@ typedef struct {
 	int16_t accel_x;
 	int16_t accel_y;
 	int16_t accel_z;
-} AccellerometerSensor;
+} AccelerometerSensor;
 
 typedef struct {
 	int16_t gyro_x;
@@ -72,7 +74,7 @@ typedef struct {
 } TermometerSensor;
 
 void IMU_Init(void);
-MagnetometerSensor IMU_ReadMagnetometer(void);
-AccellerometerSensor IMU_ReadAccellerometer(void);
+AccelerometerSensor IMU_ReadAccelerometer(void);
 GyroscopeSensor IMU_ReadGyroscope(void);
+MagnetometerSensor IMU_ReadMagnetometer(void);
 TermometerSensor IMU_ReadTermometer(void);

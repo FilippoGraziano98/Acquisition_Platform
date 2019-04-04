@@ -15,11 +15,15 @@
 
 #define PACKET_MAX_ID 16	//TODO check
 
-#define MIN_SIZE(t1,t2) ((sizeof(t1)<sizeof(t2)) ? sizeof(t1) : sizeof(t2))
-#define MAX_SIZE(t1,t2) ((sizeof(t1)>sizeof(t2)) ? sizeof(t1) : sizeof(t2))
+#define MIN_SIZE(t1,t2) ((t1<t2) ? t1 : t2)
+#define MAX_SIZE(t1,t2) ((t1>t2) ? t1 : t2)
 
-#define PACKET_MIN_SIZE (MIN_SIZE(EchoPacket, GyroscopePacket))
-#define PACKET_MAX_SIZE (MAX_SIZE(EchoPacket, GyroscopePacket))
+#define PACKET_MIN_SIZE (MIN_SIZE(sizeof(EchoPacket),\
+													MIN_SIZE(sizeof(AccelerometerPacket),\
+													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))
+#define PACKET_MAX_SIZE (MAX_SIZE(sizeof(EchoPacket),\
+													MAX_SIZE(sizeof(AccelerometerPacket),\
+													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))
 
 #pragma pack(push, 1)
 
@@ -35,14 +39,31 @@ typedef struct {
 	// https://learn.sparkfun.com/tutorials/data-types-in-arduino/all
 	// float is 32bit-long on Arduino (as weel as on C)
 
+//! ACCELEROMETER_PACKET_ID and GYROSCOPE_PACKET_ID
 //! sent from the pc to the robot causes with just the header filled
 //! the robot sends it again to the pc filled with the correct info
 typedef struct {
   PacketHeader header;
-	float gyro_x;
-	float gyro_y;
+	float accel_x;	//data measured in G-Forces
+	float accel_y;		// [ note: G-forces -> a single G-force for us here on planet Earth is equivalent to 9.8 m/s^2 ]
+	float accel_z;
+} AccelerometerPacket;
+#define ACCELEROMETER_PACKET_ID 1
+
+typedef struct {
+  PacketHeader header;
+	float gyro_x;		//data measured in DPS
+	float gyro_y;			// [ note: DPS, Degrees Per Second ]
 	float gyro_z;
 } GyroscopePacket;
-#define GYROSCOPE_PACKET_ID 1
+#define GYROSCOPE_PACKET_ID 2
+
+typedef struct {
+  PacketHeader header;
+	float magnet_x;		//data measured in μT
+	float magnet_y;
+	float magnet_z;
+} MagnetometerPacket;
+#define MAGNETOMETER_PACKET_ID 2
 
 #pragma pack(pop)

@@ -33,6 +33,7 @@ int main(void){
 		//aggiorna dati
     AcquisitionPlatform_imuUpdate(acq_pl);
     
+        
     //controlla se sono arrivati pacchetti
     if( UART_check_packet() ) {
     	UART_receive_packet(pkt);

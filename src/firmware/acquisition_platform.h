@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "imu/imu.h"
+#include "imu/imu_i2c.h"
 
 typedef struct AcquisitionPlatform {	
 	//seq number of the latest packets sent
@@ -11,7 +12,9 @@ typedef struct AcquisitionPlatform {
   uint16_t global_seq;
   
 	//these are the system variables, updated reading data from imu
+	AccelerometerData accelerometer_data;
   GyroscopeData gyroscope_data;
+  MagnetometerData magnetometer_data;
 } AcquisitionPlatform;
 
 /*

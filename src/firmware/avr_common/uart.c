@@ -8,6 +8,29 @@
 
 static UART uart0;
 
+#ifdef DEBUG_PRINTF
+void UART_TxByte_debug(uint8_t data) {
+	/* Wait for empty transmit buffer */
+	while ( !( UCSR0A & (1<<UDRE0) ) );
+	/* Put data into buffer, sends the data */
+	UDR0 = data;
+}
+
+int UART_TxByte_printf(uint8_t data, FILE *stream) {
+    // translate \n to \r for br@y++ terminal
+    if (data == '\n')
+    	UART_TxByte_debug('\r');
+    UART_TxByte_debug(data);
+    return 0;
+}
+
+static FILE mystdout = FDEV_SETUP_STREAM(UART_TxByte_printf, NULL, _FDEV_SETUP_WRITE);
+
+void printf_init(void){
+  stdout = &mystdout;
+}
+#endif
+
 static void UART_buffers_init(void) {
 	//initialize rx_buffer
 	uart0.rx_start = 0;
@@ -38,6 +61,10 @@ void UART_Init(void){
 	UCSR0B = (1<<RXEN0)|(1<<TXEN0)|(1<<RXCIE0);
 	// Set frame format: 8data, 2stop bit
 	UCSR0C = (1<<UCSZ01)|(1<<UCSZ00);
+	
+	#ifdef DEBUG_PRINTF
+	printf_init();
+	#endif
 	
 	sei();
 }

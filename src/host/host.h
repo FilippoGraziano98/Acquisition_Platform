@@ -11,7 +11,9 @@ typedef struct Host {
   uint16_t global_seq;
   
 	//these are the system variables, updated by the serial communiction
+  AccelerometerPacket accelerometer_packet;
   GyroscopePacket gyroscope_packet;
+  MagnetometerPacket magnetometer_packet;
 } Host;
 
 /*
@@ -27,6 +29,13 @@ Host* Host_init(const char* device);
 int Host_checkConnection(Host* host, int cycles);
 
 /*
+ * Host_getAccelerometerData :
+ *  asks the controller for update accelerometer_data
+ * 	and saves it in host->acceleremoter_packet
+ */
+int Host_getAccelerometerData(Host* host);
+
+/*
  * Host_getGyroscopeData :
  *  asks the controller for update gyroscope_data
  * 	and saves it in host->gyroscope_packet
@@ -34,10 +43,17 @@ int Host_checkConnection(Host* host, int cycles);
 int Host_getGyroscopeData(Host* host);
 
 /*
- * Host_printGyroscopeData :
- *  prints to stdout gyroscope_data
+ * Host_getMagnetometerData :
+ *  asks the controller for update magnetometer_data
+ * 	and saves it in host->magnetometer_packet
  */
-void Host_printGyroscopeData(Host* host);
+int Host_getMagnetometerData(Host* host);
+
+/*
+ * Host_printIMUData :
+ *  prints to stdout accelerometer_data, gyroscope_data
+ */
+void Host_printIMUData(Host* host);
 
 /*
  * Host_destroy :

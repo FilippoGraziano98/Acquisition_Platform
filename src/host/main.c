@@ -62,8 +62,11 @@ int main(int argc, char** argv) {
 	}
 	
 	while(1) {
+		Host_getAccelerometerData(host);
 		Host_getGyroscopeData(host);
-		Host_printGyroscopeData(host);
+		Host_getMagnetometerData(host);
+		
+		Host_printIMUData(host);
 	}
 	
 	EXIT:
