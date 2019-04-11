@@ -22,14 +22,14 @@
  *					device acks each data
  *		- master transmits the stop condition
  */
-void I2C_WriteRegister(uint8_t device_address, uint8_t device_reg, unsigned char data);
+void I2C_WriteRegister(uint8_t device_address, uint8_t device_reg, uint8_t data);
 /*
  * I2C_WriteNRegisters: writes to n consecutive registers
  *	@param device_reg_start : addres of first reg to write
  *	@param n : number of contiguos register to write
  *	@param data : array of n bytes
  */
-void I2C_WriteNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, unsigned char* data);
+void I2C_WriteNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, uint8_t* data);
 
 
 /*
@@ -50,14 +50,14 @@ void I2C_WriteNRegisters(uint8_t device_address, uint8_t device_reg_start, int n
  *				device will stop sending data upon receiving a nack
  *		- master transmits the stop condition
  */
-unsigned char I2C_ReadRegister(uint8_t device_address, uint8_t device_reg);
+uint8_t I2C_ReadRegister(uint8_t device_address, uint8_t device_reg);
 /*
  * I2C_ReadNRegisters: reads from n consecutive registers
  *	@param device_reg_start : addres of first reg to read
  *	@param n : number of contiguos register to read
  *	@param data : array of n bytes (preallocated)
  */
-void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, unsigned char* data);
+void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, uint8_t* data);
 
 
 /*

@@ -1,3 +1,8 @@
+/*
+ * this version is now obsolete !!
+ *		i2c.h and i2c.c contains an interrupt driven uart implementation
+ */
+
 #pragma once
 
 #define FREQ_CPU 16000000L	//cpu clock spedd at 16MHz
@@ -72,7 +77,7 @@ uint8_t I2C_SendAddress(uint8_t address_7bit, uint8_t rw);
  *		Data is sent when SCL is low.
  *	@return: 1 if ok, 0 else
  */
-uint8_t I2C_Write(unsigned char data);
+uint8_t I2C_Write(uint8_t data);
 
 
 /*
@@ -82,4 +87,4 @@ uint8_t I2C_Write(unsigned char data);
  */
 #define ACK 1
 #define NACK 0
-unsigned char I2C_Read(uint8_t ack);
+uint8_t I2C_Read(uint8_t ack);

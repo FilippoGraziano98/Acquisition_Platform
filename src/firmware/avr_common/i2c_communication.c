@@ -24,7 +24,7 @@ static void I2C_WritePreamble(uint8_t device_address, uint8_t device_reg) {
 	check_err(err, "[I2C_WritePreamble] Error transmitting the Internal Device Register");
 }
 
-void I2C_WriteRegister(uint8_t device_address, uint8_t device_reg, unsigned char data) {
+void I2C_WriteRegister(uint8_t device_address, uint8_t device_reg, uint8_t data) {
 	uint8_t err;
 	
 	I2C_WritePreamble(device_address, device_reg);
@@ -35,7 +35,7 @@ void I2C_WriteRegister(uint8_t device_address, uint8_t device_reg, unsigned char
 	I2C_Stop();
 }
 
-void I2C_WriteNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, unsigned char* data) {
+void I2C_WriteNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, uint8_t* data) {
 	uint8_t err;
 	
 	I2C_WritePreamble(device_address, device_reg_start);
@@ -73,7 +73,7 @@ static void I2C_ReadPreamble(uint8_t device_address, uint8_t device_reg) {
 	check_err(err, "[I2C_ReadPreamble] Error transmitting the Device Address");
 }
 
-unsigned char I2C_ReadRegister(uint8_t device_address, uint8_t device_reg) {	
+uint8_t I2C_ReadRegister(uint8_t device_address, uint8_t device_reg) {	
 	I2C_ReadPreamble(device_address, device_reg);
 	
 	//send a read without outputting acks (==>> NACK)
@@ -84,7 +84,7 @@ unsigned char I2C_ReadRegister(uint8_t device_address, uint8_t device_reg) {
 	return data;
 }
 
-void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, unsigned char* data) {
+void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, uint8_t* data) {
 	I2C_ReadPreamble(device_address, device_reg_start);
 	
 	int i;

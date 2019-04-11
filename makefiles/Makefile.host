@@ -1,11 +1,16 @@
 INCLUDE_DIRS = -I../src/common -I../src/host/
+LIBS = -lpthread
 
 CC = gcc
-CCOPTS = -Wall -Ofast -std=gnu99 -Wstrict-prototypes $(INCLUDE_DIRS)
 
-HEADERS = host.h serial.h serial_packets.h
-OBJS = host.o serial.o serial_packets.o
-BINS = main
+DEBUG_OPTS = -g
+#DEBUG_OPTS += -DDEBUG_RAW			#packets also include raw 16-bits read from imu
+
+CCOPTS = -Wall -Ofast -std=gnu99 -Wstrict-prototypes $(LIBS) $(INCLUDE_DIRS) $(DEBUG_OPTS)
+
+HEADERS = host.h serial.h serial_communication.h
+OBJS = host.o serial.o serial_communication.o
+BINS = acquisition_platform
 
 .phony: clean all
 
@@ -20,7 +25,7 @@ all: $(BINS)
 %.o : ../src/host/serial/%.c
 	$(CC) $(CCOPTS) -c -o $@  $<
 
-main: ../src/host/main.c $(OBJS)
+acquisition_platform: ../src/host/main.c $(OBJS)
 	$(CC) $(CCOPTS) -o $@ $^ $(LIBS)
 
 clean:

@@ -11,7 +11,6 @@
 // NOTE : F_CPU defined at compile time:
 	// -DF_CPU=16000000UL
 
-#include <stdio.h>
 #include "../../common/packets.h"
 #define UART_BUFFER_SIZE 8*PACKET_MAX_SIZE
 

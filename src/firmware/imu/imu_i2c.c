@@ -15,9 +15,14 @@ void IMU_Init(void){
 		
 	//sets Gyro Full Scale RANGE to 250dps (degrees/sec)
 		//consequently we have a low range, but a high sensitivity!!
-	I2C_WriteBits(ACCELGYRO_DEVICE, GYRO_CONFIG, (1<<4)|(1<<3), 0x00);
+	//and 0-es Fchoice_b in order to be able to change gyoscope bandwidth
+	I2C_WriteBits(ACCELGYRO_DEVICE, GYRO_CONFIG, (1<<4)|(1<<3)|(1<<1)|1, 0x00);
 	_delay_ms(10);
-	//sets DLPF to have gyroscope bandwidth to 5Hz
+	//sets DLPF to have gyroscope bandwidth to 5Hz,
+		// [Bandwidth is the highest frequency signal that can be sampled without aliasing
+					// by the specified Output Data Rate]
+		// Per the Nyquist sampling criterion, bandwidth is half the Output Data Rate.
+		// so we will sample data at Output Data Rate = 10 Hz
 	I2C_WriteRegister(ACCELGYRO_DEVICE, CONFIG, 0x06);
 	_delay_ms(10);
 	

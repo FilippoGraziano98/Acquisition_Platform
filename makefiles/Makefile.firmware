@@ -1,7 +1,11 @@
 CC=avr-gcc
 SRCDIR = ../src/firmware
 INCLUDE_DIRS=-I../src/common -I$(SRCDIR)
-CC_OPTS=-Wall --std=gnu99 -DF_CPU=16000000UL -O3 -funsigned-char -funsigned-bitfields  -fshort-enums -Wall -Wstrict-prototypes -mmcu=atmega2560 $(INCLUDE_DIRS)  -D__AVR_3_BYTE_PC__
+
+#DEBUG_OPTS += -DDEBUG_PRINTF		#use cutecom, no packet handling
+#DEBUG_OPTS += -DDEBUG_RAW			#packets also include raw 16-bits read from imu
+
+CC_OPTS=-Wall --std=gnu99 -DF_CPU=16000000UL -O3 -funsigned-char -funsigned-bitfields  -fshort-enums -Wall -Wstrict-prototypes -mmcu=atmega2560 $(INCLUDE_DIRS)  -D__AVR_3_BYTE_PC__ $(DEBUG_OPTS)
 AS_OPTS=-x assembler-with-cpp $(CC_OPTS)
 
 AVRDUDE = avrdude
@@ -50,6 +54,11 @@ all: $(BINS) $(FIRMWARE)
 %.hex: %.elf
 	avr-objcopy -O ihex -R .eeprom $< $@
 	$(AVRDUDE) $(AVRDUDE_FLAGS) -U flash:w:$@:i #$(AVRDUDE_WRITE_EEPROM) 
+
+upload:
+	avr-objcopy -O ihex -R .eeprom main.elf $(FIRMWARE)
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -U flash:w:$(FIRMWARE):i #$(AVRDUDE_WRITE_EEPROM) 
+	
 
 clean:	
 	rm -rf $(OBJS) $(BINS) *.hex *~ *.o

@@ -14,7 +14,6 @@
 typedef uint8_t(*PacketOpFunctionType)(PacketHeader* pkt);
 
 typedef struct PacketHandler {
-	AcquisitionPlatform* acq_pl;
 	PacketOpFunctionType packetOps_vector[PACKET_MAX_ID];
 } PacketHandler;
 
@@ -24,7 +23,7 @@ typedef struct PacketHandler {
  * 	initializes the private (defined in .c) packetHandler
  * 		populating the static vector of PacketOpFunctionType [packetOps_vector]
  */
-void PacketHandler_init(AcquisitionPlatform* acq_pl);
+void PacketHandler_init(void);
 
 /* 
  * PacketHandler :

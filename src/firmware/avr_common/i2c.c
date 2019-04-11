@@ -1,14 +1,13 @@
+/*
+ * this version is now obsolete !!
+ *		i2c.h and i2c.c contains an interrupt driven uart implementation
+ */
+
 //https://exploreembedded.com/wiki/AVR_C_Library
 #include <avr/io.h>
 #include <util/delay.h>
 
 #include "i2c.h"
-
-#define DEBUG 0
-
-#if DEBUG
-#include <stdio.h> //needed if DEBUG==1
-#endif
 
 
 void I2C_Init(void) {
@@ -37,9 +36,6 @@ uint8_t I2C_Start(void) {
 	_I2C_Start();
   
   //check if status code generated is 0x08
-  #if DEBUG
-  printf("[I2C_Start] status : %02x\n",(int)(TWSR&0xF8));
-  #endif
   return (TWSR&0xF8) == TWSR_START;
 }
 
@@ -47,9 +43,6 @@ uint8_t I2C_Repeated_Start(void) {
 	_I2C_Start();
   
   //check if status code generated is 0x08
-  #if DEBUG
-  printf("[I2C_Repeated_Start] status : %02x\n",(int)(TWSR&0xF8));
-  #endif
   return (TWSR&0xF8) == TWSR_REPEATED_START;
 }
 
@@ -78,26 +71,20 @@ uint8_t I2C_SendAddress(uint8_t address_7bit, uint8_t rw) {
   _I2C_Write(addr);
   
   //check if status code generated is 0x28
-  #if DEBUG
-  printf("[I2C_SlaveAddress] status : %02x\n",(int)(TWSR&0xF8));
-  #endif
   if(rw) //read, Master Receiver
 	  return (TWSR&0xF8) == TWSR_MR_SLA_ACK;
 	 else //write, Master Transmitter
 	 	return (TWSR&0xF8) == TWSR_MT_SLA_ACK;
 }
 
-uint8_t I2C_Write(unsigned char data) {
+uint8_t I2C_Write(uint8_t data) {
   _I2C_Write(data);
   
   //check if status code generated is 0x28
-  #if DEBUG
-  printf("[I2C_Write] status : %02x\n",(int)(TWSR&0xF8));
-  #endif
   return (TWSR&0xF8) == TWSR_MT_DATA_ACK;
 }
 
-unsigned char I2C_Read(uint8_t ack) {
+uint8_t I2C_Read(uint8_t ack) {
 	//TWINT to start the operation od the TWI(i2c)
 	//TWEN to start TWI interface
 	//TWEA controls the generation of the acknowledge pulse.

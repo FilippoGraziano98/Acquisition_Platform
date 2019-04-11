@@ -158,8 +158,8 @@ int serial_receive(int fd, uint8_t* buf, uint8_t size) {
 	
 	int recv = read(fd, buf, size);
 	//TODO this may loop indefintely if trying to read size higher than available
-	while(recv < size)
-		recv += read(fd, buf+recv, size-recv);
+	//while(recv < size)
+		//recv += read(fd, buf+recv, size-recv);
 	
 	return recv;
 }

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>
 
 #include "../common/packets.h"
@@ -11,6 +13,8 @@ typedef struct Host {
   uint16_t global_seq;
   
 	//these are the system variables, updated by the serial communiction
+	IMUConfigurationPacket imu_config_packet;
+	
   AccelerometerPacket accelerometer_packet;
   GyroscopePacket gyroscope_packet;
   MagnetometerPacket magnetometer_packet;
@@ -27,6 +31,13 @@ Host* Host_init(const char* device);
  * 	sends a few (cycles) EchoPacket testing serial connection
  */
 int Host_checkConnection(Host* host, int cycles);
+
+/*
+ * Host_getIMUConfiguration :
+ *  asks the controller for update imu configuration
+ * 	and saves it in host->imu_config_packet
+ */
+int Host_getIMUConfiguration(Host* host);
 
 /*
  * Host_getAccelerometerData :
@@ -48,6 +59,12 @@ int Host_getGyroscopeData(Host* host);
  * 	and saves it in host->magnetometer_packet
  */
 int Host_getMagnetometerData(Host* host);
+
+/*
+ * Host_printIMUConfiguration :
+ *  prints to stdout imu configuration
+ */
+void Host_printIMUConfiguration(Host* host);
 
 /*
  * Host_printIMUData :

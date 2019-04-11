@@ -6,6 +6,7 @@ README.txt
 *~
 *_old.c
 *_old.h
+_*
 **/_Makefile
 host_build/*
 !host_build/Makefile

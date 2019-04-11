@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "serial/serial.h"
 
@@ -61,12 +62,17 @@ int main(int argc, char** argv) {
 		goto EXIT;
 	}
 	
+	Host_getIMUConfiguration(host);
+	Host_printIMUConfiguration(host);
+	
 	while(1) {
 		Host_getAccelerometerData(host);
 		Host_getGyroscopeData(host);
 		Host_getMagnetometerData(host);
 		
 		Host_printIMUData(host);
+		
+		sleep(1);
 	}
 	
 	EXIT:
