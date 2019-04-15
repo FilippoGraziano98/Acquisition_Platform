@@ -1,60 +1,140 @@
 #include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/atomic.h>
 #include <util/delay.h>
 
-#include "imu_i2c.h"
-#include "imu.h"
-
-#define CALIBRATION_SAMPLES	64
-#define CALIBRATION_SAMPLES_LOG	6
-
-#ifdef DEBUG_PRINTF
+#include <string.h>
+#ifdef DEBUG_PRINTF_
 #include <stdio.h>
 #endif
 
+#include "../avr_common/i2c_communication.h"
+
+#include "imu.h"
+
+static IMU_t IMU;
+
+static void IMU_StructInit(void) {
+	memset(&IMU, 0, sizeof(IMU_t));
+}
+
+static void IMU_ConfigRegs(void) {
+	//resets the internal registers and restores the default settings.
+	//I2C_WriteBits(ACCELGYRO_DEVICE, PWR_MGMT_1, 0x80, 0x80);
+	I2C_WriteRegister(ACCELGYRO_DEVICE, PWR_MGMT_1, 0x80);
+	_delay_ms(500);
+		
+	//sets Gyro Full Scale RANGE to 250dps (degrees/sec)
+		//consequently we have a low range, but a high sensitivity!!
+	//and 0-es Fchoice_b in order to be able to change gyoscope bandwidth
+	//I2C_WriteBits(ACCELGYRO_DEVICE, GYRO_CONFIG, (1<<4)|(1<<3)|(1<<1)|1, 0x00);
+	I2C_WriteRegister(ACCELGYRO_DEVICE, GYRO_CONFIG, 0x00);
+	_delay_ms(10);
+	
+	//sets DLPF to have gyroscope bandwidth to 5Hz,
+		// [Bandwidth is the highest frequency signal that can be sampled without aliasing
+					// by the specified Output Data Rate]
+		// Per the Nyquist sampling criterion, bandwidth is half the Output Data Rate.
+		// so we will sample data at Output Data Rate = 10 Hz
+	I2C_WriteRegister(ACCELGYRO_DEVICE, CONFIG, 0x06);
+	_delay_ms(10);
+	
+	//sets Accel Full Scale to 2g
+	//I2C_WriteBits(ACCELGYRO_DEVICE, ACCEL_CONFIG, (1<<4)|(1<<3), 0x00);
+	I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG, 0x00);
+	_delay_ms(10);
+	//sets Accel bandwidth to 5Hz
+	I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG2, 0x06);
+	_delay_ms(10);
+
+		//disables sleep mode
+	//I2C_WriteBits(ACCELGYRO_DEVICE, PWR_MGMT_1, 1<<6, 0);
+	//sets PowerManagement Registers
+		//auto selects the best available clock source
+	//I2C_WriteBits(ACCELGYRO_DEVICE, PWR_MGMT_1, (1<<2)|(1<<1)|1, 0x01);
+	I2C_WriteRegister(ACCELGYRO_DEVICE, PWR_MGMT_1, 0x01);
+	
+	_delay_ms(10);
+		//sets all sensors to on
+	//I2C_WriteBits(ACCELGYRO_DEVICE, PWR_MGMT_2, (1<<5)|(1<<4)|(1<<3)|(1<<2)|(1<<1)|1, 0x00);
+	I2C_WriteRegister(ACCELGYRO_DEVICE, PWR_MGMT_2, 0x00);
+	_delay_ms(10);
+	
+	//i2c_master interface pins(SCL, SDA)
+		//will go into ‘bypass mode’
+		//when the i2c master interface is disabled
+	I2C_WriteRegister(ACCELGYRO_DEVICE, INT_PIN_CFG, 0x02);
+	_delay_ms(10);
+	
+	//setting for Magnetometer 16bit output
+		//and Continuous measurement mode [0x12]
+	I2C_WriteRegister(MAGNET_DEVICE, CNTL1, 0x12);
+	_delay_ms(10);
+}
+
+/* IMU_<Sensor>Raw
+ * 	reads raw data from IMU, and stores it in global IMU_rawData
+ *	NOTE: these functions are called by the timer ISR
+ *			and they are defined later in this file
+ */
+static void IMU_AccelerometerRaw(void);
+static void IMU_GyroscopeRaw(void);
+static void IMU_MagnetometerRaw(void);
+static void IMU_TermometerRaw(void);
+
 /*
-As with any sensor, the values you measure will contain some amount of error or bias.
-You can see gyro bias by measuring the output when the gyro is still.
-These errors are sometimes called bias drift or bias instability.
+ * 	[ https://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html ]
+ * The AVR hardware clears the global interrupt flag in SREG before entering an interrupt vector.
+ * 		Thus, normally interrupts will remain disabled inside the handler until the handler exits (reti).
+ * To avoid this behaviour (re-enabling the global interrupt flag as early as possible),
+ * 		in order to not defer any other interrupt more than absolutely needed
+ *			you can use the isr_attribute: ISR_NOBLOCK
+ *
+ * Using ISR_NOBLOCK, the isr runs with global interrupts enabled.
+ * 	The interrupt enable flag is activated by the compiler as early as possible within the ISR
+ * 		to ensure minimal processing delay for nested interrupts (i.e. other interrupts).
+ */
+/*
+ * In our case as communication with the sensor through I2C is very slow
+ *		[ this ISR has a mean duration of 10 ms (empiric measure) ]
+ *	and we don't want to delay this much the communication with the host (uart)
+ */
+ISR(TIMER1_COMPA_vect, ISR_NOBLOCK) {
+	IMU_AccelerometerRaw();
+	IMU_GyroscopeRaw();
+	IMU_MagnetometerRaw();
+	//IMU_TermometerRaw();
 
-The temperature of the sensor greatly affects the bias.
-To help minimize the source of this error, most gyros have a built in temperature sensor.
-Thus, you are able to read the temperature of the sensor and correct or any temperature dependent changes.
+	IMU.imu_time_seq++;
+}
 
-In order to correct for these errors, the gyro must be calibrated.
+static void IMU_setPeriodicDataUpdate(uint16_t frequency) {
+  uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
+  
+  // configure timer1, prescaler : 1024, CTC (Clear Timer on Compare match)
+  TCCR1A = 0;
+  TCCR1B = (1 << WGM12) | (1 << CS10) | (1 << CS12); 
+  
+  /*
+	 * cpu frequency 16MHz = 16.000.000 Hz
+	 * prescaler 1024
+	 *	-->> TCNT1 increased at a frequency of 16.000.000/1024 Hz = 15625 Hz
+	 *	so 1 ms will correspond do 15.625 counts
+	 */
+  OCR1A = (uint16_t)(15.625 * period_ms);
 
-This is usually done by keeping the gyro still and zeroing all of the readings in your code.
-*/
-GyroscopeCalibrationBiases IMU_GyroscopeCalibration(void) {
-	uint32_t gyro_x_sum=0, gyro_y_sum=0, gyro_z_sum=0;
-	
-	#ifdef DEBUG_PRINTF
-	printf("IMU_GyroscopeCalibration\n");
-	#endif
-	
-	GyroscopeSensor gyro_sens_aux;
-	int i;
-	for(i=0; i<CALIBRATION_SAMPLES; i++) {
-		gyro_sens_aux = IMU_ReadGyroscope();
-		
-		gyro_x_sum += gyro_sens_aux.gyro_x;
-		gyro_y_sum += gyro_sens_aux.gyro_y;
-		gyro_z_sum += gyro_sens_aux.gyro_z;
-		
-		#ifdef DEBUG_PRINTF
-		printf("    %d) x: %d [sum: %ld], y: %d [sum: %ld], z: %d [sum: %ld]\n", i, gyro_sens_aux.gyro_x, gyro_x_sum, gyro_sens_aux.gyro_y, gyro_y_sum, gyro_sens_aux.gyro_z, gyro_z_sum);
-		#endif
-	}
-	
-	GyroscopeCalibrationBiases gyro_biases = {
-		.gyro_x_bias = gyro_x_sum >> CALIBRATION_SAMPLES_LOG,
-		.gyro_y_bias = gyro_y_sum >> CALIBRATION_SAMPLES_LOG,
-		.gyro_z_bias = gyro_z_sum >> CALIBRATION_SAMPLES_LOG
-	};
-	
-	#ifdef DEBUG_PRINTF
-	printf("  x: %d, y: %d, z: %d\n", gyro_biases.gyro_x_bias, gyro_biases.gyro_y_bias, gyro_biases.gyro_z_bias);
-	#endif
-	return gyro_biases;
+	// timer-interrupt enabling will be executed atomically (no other interrupts)
+		// and ATOMIC_FORCEON ensures Global Interrupt Status flag bit in SREG set afetrwards
+		// (sei() not needed)
+  ATOMIC_BLOCK(ATOMIC_FORCEON) {
+  	TIMSK1 |= (1 << OCIE1A);  // enable the timer interrupt (istruz. elementare, no interrupt)
+  }
+}
+
+void IMU_Init(void) {
+	IMU_StructInit();
+	IMU_ConfigRegs();
+	IMU_setPeriodicDataUpdate(IMU_UPDATE_RATE);
 }
 
 
@@ -70,18 +150,32 @@ GyroscopeCalibrationBiases IMU_GyroscopeCalibration(void) {
  *						and we read a 16-bits value in 2's complement (+/-)2^15 mV
  *					==>> sensitivity = 2^15 / 2
  */
-AccelerometerData IMU_AccelerometerData() {
-	AccelerometerSensor accel_sens = IMU_ReadAccelerometer();
+static void IMU_Accelerometer_Callback(uint8_t* buffer, uint8_t buflen) {
+	if(buflen != 6)	//this is the callback of a read of 6 bytes
+		return;
 	
+	IMU.accel_raw_x = ( ((int16_t) buffer[0]) << 8 ) + buffer[1];
+	IMU.accel_raw_y = ( ((int16_t) buffer[2]) << 8 ) + buffer[3];
+	IMU.accel_raw_z = ( ((int16_t) buffer[4]) << 8 ) + buffer[5];
+
+	IMU.accel_raw_flag = VALID;
+	
+	#ifdef DEBUG_PRINTF_
+	printf("IMU Accel Callback, raw x: %d, raw y: %d, raw z: %d\n", IMU.accel_raw_x, IMU.accel_raw_y, IMU.accel_raw_z);
+	#endif
+
 	float accel_sensitivity = (uint16_t)(1<<15) / (float)2;
-	
-	AccelerometerData accel_data;
-	
-	accel_data.accel_x = (float)(accel_sens.accel_x) / accel_sensitivity;
-	accel_data.accel_y = (float)(accel_sens.accel_y) / accel_sensitivity;
-	accel_data.accel_z = (float)(accel_sens.accel_z) / accel_sensitivity;
-	
-	return accel_data;
+		
+	IMU.accel_x = (float)(IMU.accel_raw_x) / accel_sensitivity;
+	IMU.accel_y = (float)(IMU.accel_raw_y) / accel_sensitivity;
+	IMU.accel_z = (float)(IMU.accel_raw_z) / accel_sensitivity;
+
+	IMU.accel_seq++;
+}
+static void IMU_AccelerometerRaw(void) {
+	IMU.accel_raw_flag = INVALID;
+
+	I2C_ReadNRegisters(ACCELGYRO_DEVICE, ACCEL_XOUT_H, 6, IMU_Accelerometer_Callback);
 }
 
 
@@ -96,34 +190,32 @@ AccelerometerData IMU_AccelerometerData() {
  *						and we read a 16-bits value in 2's complement (+/-)2^15 mV
  *					==>> sensitivity = 2^15 / 250
  */
-GyroscopeData IMU_GyroscopeData(GyroscopeCalibrationBiases* gyro_biases) {
-	GyroscopeSensor gyro_sens = IMU_ReadGyroscope();
+static void IMU_Gyroscope_Callback(uint8_t* buffer, uint8_t buflen) {
+	if(buflen != 6)	//this is the callback of a read of 6 bytes
+		return;
 	
-	GyroscopeSensor gyro_sens_calibrated = {
-		.gyro_x = gyro_sens.gyro_x - gyro_biases->gyro_x_bias,
-		.gyro_y = gyro_sens.gyro_y - gyro_biases->gyro_y_bias,
-		.gyro_z = gyro_sens.gyro_z - gyro_biases->gyro_z_bias
-	};
-	
-	#ifdef DEBUG_PRINTF
-	printf("[IMU_GyroscopeData] x: %d, y: %d, z: %d\n", gyro_sens_calibrated.gyro_x, gyro_sens_calibrated.gyro_y, gyro_sens_calibrated.gyro_z);
+	IMU.gyro_raw_x = ( ((int16_t) buffer[0]) << 8 ) + buffer[1];
+	IMU.gyro_raw_y = ( ((int16_t) buffer[2]) << 8 ) + buffer[3];
+	IMU.gyro_raw_z = ( ((int16_t) buffer[4]) << 8 ) + buffer[5];
+
+	IMU.gyro_raw_flag = VALID;
+
+	#ifdef DEBUG_PRINTF_
+	printf("IMU Gyro Callback, raw x: %d, raw y: %d, raw z: %d\n", IMU.gyro_raw_x, IMU.gyro_raw_y, IMU.gyro_raw_z);
 	#endif
-	
+		
 	float gyro_sensitivity = (uint16_t)(1<<15) / (float)250;
 	
-	GyroscopeData gyro_data;
-	
-	#ifdef DEBUG_RAW
-	gyro_data.raw_x = gyro_sens.gyro_x;
-	gyro_data.raw_y = gyro_sens.gyro_y;
-	gyro_data.raw_z = gyro_sens.gyro_z;
-	#endif
-	
-	gyro_data.gyro_x = (float)(gyro_sens_calibrated.gyro_x) / gyro_sensitivity;
-	gyro_data.gyro_y = (float)(gyro_sens_calibrated.gyro_y) / gyro_sensitivity;
-	gyro_data.gyro_z = (float)(gyro_sens_calibrated.gyro_z) / gyro_sensitivity;
-	
-	return gyro_data;
+	IMU.gyro_x = (float)(IMU.gyro_raw_x - IMU.gyro_x_bias) / gyro_sensitivity;
+	IMU.gyro_y = (float)(IMU.gyro_raw_y - IMU.gyro_y_bias) / gyro_sensitivity;
+	IMU.gyro_z = (float)(IMU.gyro_raw_z - IMU.gyro_z_bias) / gyro_sensitivity;
+
+	IMU.gyro_seq++;
+}
+static void IMU_GyroscopeRaw(void) {
+	IMU.gyro_raw_flag = INVALID;
+
+	I2C_ReadNRegisters(ACCELGYRO_DEVICE, GYRO_XOUT_H, 6, IMU_Gyroscope_Callback);
 }
 
 
@@ -140,20 +232,120 @@ GyroscopeData IMU_GyroscopeData(GyroscopeCalibrationBiases* gyro_biases) {
  *					[ NOTE: Magnet_Resolution = 1/Magnet_Sensitivity ]
  *					==>> Magnet_Resolution =~ 4912 / 32760 =~ 0.14993894993894993
  */
-MagnetometerData IMU_MagnetometerData() {
-	MagnetometerSensor mg_sens = IMU_ReadMagnetometer();
+static void IMU_Magnetometer_Callback(uint8_t* buffer, uint8_t buflen) {
+	if(buflen != 7)	//this is the callback of a read of 7 bytes
+		return;
+	
+	IMU.magnet_raw_x = ( ((int16_t) buffer[1]) << 8 ) + buffer[0];
+	IMU.magnet_raw_y = ( ((int16_t) buffer[3]) << 8 ) + buffer[2];
+	IMU.magnet_raw_z = ( ((int16_t) buffer[5]) << 8 ) + buffer[4];
+
+	IMU.magnet_raw_flag = VALID;
+
+	#ifdef DEBUG_PRINTF_
+	printf("IMU Magnet Callback, raw x: %d, raw y: %d, raw z: %d\n", IMU.magnet_raw_x, IMU.magnet_raw_y, IMU.magnet_raw_z);
+	#endif
 	
 	float mg_resolution = (float)4912 / 32760;
-	
-	MagnetometerData mg_data;
-	
-	mg_data.magnet_x = (float)(mg_sens.magnet_x) * mg_resolution;
-	mg_data.magnet_y = (float)(mg_sens.magnet_y) * mg_resolution;
-	mg_data.magnet_z = (float)(mg_sens.magnet_z) * mg_resolution;
-	
-	return mg_data;
+		
+	IMU.magnet_x = (float)(IMU.magnet_raw_x) * mg_resolution;
+	IMU.magnet_y = (float)(IMU.magnet_raw_y) * mg_resolution;
+	IMU.magnet_z = (float)(IMU.magnet_raw_z) * mg_resolution;
+
+	IMU.magnet_seq++;
+}
+static void IMU_MagnetometerRaw(void) {
+	IMU.magnet_raw_flag = INVALID;
+
+	//I will read 7 regs starting from HXL because I'll also read ST2
+		//data read must end reading ST2 (from datasheet)
+	I2C_ReadNRegisters(MAGNET_DEVICE, HXL, 7, IMU_Magnetometer_Callback);
 }
 
-/*TermometerData IMU_TermometerData() {*/
-/*	//TODO*/
-/*}*/
+
+static void IMU_Termometer_Callback(uint8_t* buffer, uint8_t buflen) {
+	if(buflen != 2)	//this is the callback of a read of 7 bytes
+		return;
+	
+	IMU.temperature_raw = ( ((int16_t) buffer[0]) << 8 ) + buffer[1];
+
+	IMU.temp_raw_flag = VALID;
+}
+static void IMU_TermometerRaw(void) {
+	IMU.temp_raw_flag = INVALID;
+
+	I2C_ReadNRegisters(ACCELGYRO_DEVICE, TEMP_OUT_H, 2, IMU_Termometer_Callback);
+}
+
+
+#define CALIBRATION_SAMPLES	64
+#define CALIBRATION_SAMPLES_LOG	6
+/*
+As with any sensor, the values you measure will contain some amount of error or bias.
+You can see gyro bias by measuring the output when the gyro is still.
+These errors are sometimes called bias drift or bias instability.
+
+The temperature of the sensor greatly affects the bias.
+To help minimize the source of this error, most gyros have a built in temperature sensor.
+Thus, you are able to read the temperature of the sensor and correct or any temperature dependent changes.
+
+In order to correct for these errors, the gyro must be calibrated.
+
+This is usually done by keeping the gyro still and zeroing all of the readings in your code.
+*/
+void IMU_GyroscopeCalibration(void) {
+	uint32_t gyro_x_sum=0, gyro_y_sum=0, gyro_z_sum=0;
+	
+	#ifdef DEBUG_PRINTF_
+	printf("IMU_GyroscopeCalibration\n");
+	#endif
+	
+	uint8_t i;
+	for(i=0; i<CALIBRATION_SAMPLES; i++) {
+		//waits for gyroscope data to be valid
+		while(IMU.gyro_raw_flag == INVALID)
+			_delay_ms(1);
+		
+		
+		gyro_x_sum += IMU.gyro_raw_x;
+		gyro_y_sum += IMU.gyro_raw_y;
+		gyro_z_sum += IMU.gyro_raw_z;
+		
+		#ifdef DEBUG_PRINTF_
+		printf("    %d) x: %d [sum: %ld], y: %d [sum: %ld], z: %d [sum: %ld]\n", i, IMU.gyro_raw_x, gyro_x_sum, IMU.gyro_raw_y, gyro_y_sum, IMU.gyro_raw_z, gyro_z_sum);
+		#endif
+	}
+	
+	IMU.gyro_x_bias = gyro_x_sum >> CALIBRATION_SAMPLES_LOG;
+	IMU.gyro_y_bias = gyro_y_sum >> CALIBRATION_SAMPLES_LOG;
+	IMU.gyro_z_bias = gyro_z_sum >> CALIBRATION_SAMPLES_LOG;
+	
+	#ifdef DEBUG_PRINTF_
+	printf("  x: %d, y: %d, z: %d\n", IMU.gyro_x_bias, IMU.gyro_y_bias, IMU.gyro_z_bias);
+	#endif
+}
+
+void IMU_getCalibrationData(int16_t* gyro_x_bias, int16_t* gyro_y_bias, int16_t* gyro_z_bias) {
+	*gyro_x_bias = IMU.gyro_x_bias;
+	*gyro_y_bias = IMU.gyro_y_bias;
+	*gyro_z_bias = IMU.gyro_z_bias;
+}
+
+uint16_t IMU_getAccelerometer(float* x, float* y, float* z) {
+	*x = IMU.accel_x;
+	*y = IMU.accel_y;
+	*z = IMU.accel_z;
+	return IMU.accel_seq;
+}
+uint16_t IMU_getGyroscope(float* x, float* y, float* z) {
+	*x = IMU.gyro_x;
+	*y = IMU.gyro_y;
+	*z = IMU.gyro_z;
+	return IMU.gyro_seq;
+}
+uint16_t IMU_getMagnetometer(float* x, float* y, float* z) {
+	*x = IMU.magnet_x;
+	*y = IMU.magnet_y;
+	*z = IMU.magnet_z;
+	return IMU.magnet_seq;
+}

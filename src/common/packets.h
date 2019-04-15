@@ -19,13 +19,15 @@
 #define MAX_SIZE(t1,t2) ((t1>t2) ? t1 : t2)
 
 #define PACKET_MIN_SIZE (MIN_SIZE(sizeof(EchoPacket),\
+													MIN_SIZE(sizeof(EncoderPacket),\
 													MIN_SIZE(sizeof(IMUConfigurationPacket),\
 													MIN_SIZE(sizeof(AccelerometerPacket),\
-													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket))))))
+													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))
 #define PACKET_MAX_SIZE (MAX_SIZE(sizeof(EchoPacket),\
+													MAX_SIZE(sizeof(EncoderPacket),\
 													MAX_SIZE(sizeof(IMUConfigurationPacket),\
 													MAX_SIZE(sizeof(AccelerometerPacket),\
-													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket))))))
+													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))
 
 #pragma pack(push, 1)
 
@@ -37,6 +39,11 @@ typedef struct {
 } EchoPacket;
 #define ECHO_PACKET_ID 0
 
+typedef struct {
+  PacketHeader header;
+	int32_t counter;
+} EncoderPacket;
+#define ENCODER_PACKET_ID 1
 
 typedef struct {
   PacketHeader header;
@@ -44,7 +51,7 @@ typedef struct {
 	int16_t gyro_y_bias;
 	int16_t gyro_z_bias;
 } IMUConfigurationPacket;
-#define IMU_CONFIG_PACKET_ID 1
+#define IMU_CONFIG_PACKET_ID 2
 
 
 //NOTE: according to
@@ -60,21 +67,15 @@ typedef struct {
 	float accel_y;		// [ note: G-forces -> a single G-force for us here on planet Earth is equivalent to 9.8 m/s^2 ]
 	float accel_z;
 } AccelerometerPacket;
-#define ACCELEROMETER_PACKET_ID 2
+#define ACCELEROMETER_PACKET_ID 3
 
 typedef struct {
   PacketHeader header;
 	float gyro_x;		//data measured in DPS
 	float gyro_y;			// [ note: DPS, Degrees Per Second ]
 	float gyro_z;
-	
-	#ifdef DEBUG_RAW
-	int16_t raw_x;
-	int16_t raw_y;
-	int16_t raw_z;
-	#endif
 } GyroscopePacket;
-#define GYROSCOPE_PACKET_ID 3
+#define GYROSCOPE_PACKET_ID 4
 
 typedef struct {
   PacketHeader header;
@@ -82,6 +83,6 @@ typedef struct {
 	float magnet_y;
 	float magnet_z;
 } MagnetometerPacket;
-#define MAGNETOMETER_PACKET_ID 4
+#define MAGNETOMETER_PACKET_ID 5
 
 #pragma pack(pop)

@@ -66,6 +66,9 @@ int main(int argc, char** argv) {
 	Host_printIMUConfiguration(host);
 	
 	while(1) {
+		Host_getEncoderData(host);
+		Host_printEncoderData(host);
+		
 		Host_getAccelerometerData(host);
 		Host_getGyroscopeData(host);
 		Host_getMagnetometerData(host);

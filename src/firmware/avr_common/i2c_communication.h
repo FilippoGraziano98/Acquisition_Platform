@@ -1,7 +1,6 @@
 #pragma once
 
-
-#define check_err(err, msg) if (err!=1){printf(msg); exit(1);}
+#include "i2c.h"
 
 /*
  *	now we will use the i2c basics defined in i2c.h
@@ -50,20 +49,11 @@ void I2C_WriteNRegisters(uint8_t device_address, uint8_t device_reg_start, int n
  *				device will stop sending data upon receiving a nack
  *		- master transmits the stop condition
  */
-uint8_t I2C_ReadRegister(uint8_t device_address, uint8_t device_reg);
+void I2C_ReadRegister(uint8_t device_address, uint8_t device_reg, PostProcessFunction_t post_process_fn);
 /*
  * I2C_ReadNRegisters: reads from n consecutive registers
  *	@param device_reg_start : addres of first reg to read
  *	@param n : number of contiguos register to read
  *	@param data : array of n bytes (preallocated)
  */
-void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, uint8_t* data);
-
-
-/*
- * I2C_WriteBits :
- *	@param device_reg : register to update
- *	positions set to 0 in @param bit_mask won't be changed
- *	while for pos. set to 1 new value will be get in @param new_bits
- */
-void I2C_WriteBits(uint8_t device_address, uint8_t device_reg, uint8_t bit_mask, uint8_t new_bits);
+void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, PostProcessFunction_t post_process_fn);

@@ -1,25 +1,15 @@
-#include <util/delay.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "../avr_common/uart.h" // this includes the printf and initializes it
+#include "encoder.h"
 
-
-#define ENC_CTL	DDRB	//encoder port control
-#define ENC_WR	PORTB	//encoder port write	
-#define ENC_RD	PINB	//encoder port read
-#define ENC_A 1	//PB0, pin 53
-#define ENC_B 2	//PB1, pin 52
-
-#define ENC_MASK 3 //ENC_A|ENC_B
-
-volatile uint8_t int_occurred=0;
-
-
-uint8_t prev_value;
-int counter;
+// Encoder 0
+#define ENC0_CTL	DDRB	//encoder port control
+#define ENC0_WR	PORTB	//encoder port write	
+#define ENC0_RD	PINB	//encoder port read
+#define ENC0_A 1	//PB0, pin 53
+#define ENC0_B 2	//PB1, pin 52
+#define ENC0_MASK (ENC0_A|ENC0_B)
+static Encoder_t Enc0;
 
 //! @brief this represents a transition table
 //!        each entry represents the output of that transition
@@ -45,29 +35,24 @@ static const int8_t _transition_table []= {
 
 // interrupt routine for position PCINT0
 ISR(PCINT0_vect) {
-	int_occurred = 1;
-  prev_value <<=2;  //remember previous state
-  prev_value = prev_value | ( ENC_RD & ENC_MASK );
-  counter += _transition_table[ prev_value & 0x0F ];
+  Enc0.prev_value <<=2;  //remember previous state
+  Enc0.prev_value = Enc0.prev_value | ( ENC0_RD & ENC0_MASK );
+  Enc0.counter += _transition_table[ Enc0.prev_value & 0x0F ];
+}
+
+void Encoder_Init(void) {
+  ENC0_CTL &= ~ENC0_MASK; //set ENC_MASK pins as input
+  ENC0_WR |= ENC0_MASK; //enable pull up resistors
+  PCICR |= (1 << PCIE0); // set interrupt on change, looking up PCMSK0
+  PCMSK0 |= ENC0_MASK;   // set PCINT0 to trigger an interrupt on state change
+  
+  Enc0.prev_value = 3; //0b11
+  Enc0.counter = 0;
+  
+  sei();
 }
 
 
-int main(void){
-  printf_init(); 
-  ENC_CTL &= ~ENC_MASK; //set ENC_MASK pins as input
-  ENC_WR |= ENC_MASK; //enable pull up resistors
-  PCICR |= (1 << PCIE0); // set interrupt on change, looking up PCMSK0
-  PCMSK0 |= ENC_MASK;   // set PCINT0 to trigger an interrupt on state change
-  
-  prev_value = 3; //0b11
-  counter = 0;
-  
-  sei();
-  while(1){
-    while (! int_occurred);
-    // we reset the flag;
-    int_occurred=0;
-    printf("counter value = %d\n", counter);
-    printf("***********************\n");
-  }
+void Encoder_getCounts(int32_t* cnt0) {
+	*cnt0 = Enc0.counter;
 }

@@ -1,5 +1,4 @@
 #pragma once
-#include "acquisition_platform.h"
 #include "../../common/packets.h"
 
 //error conditions

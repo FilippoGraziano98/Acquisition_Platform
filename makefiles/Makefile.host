@@ -4,7 +4,6 @@ LIBS = -lpthread
 CC = gcc
 
 DEBUG_OPTS = -g
-#DEBUG_OPTS += -DDEBUG_RAW			#packets also include raw 16-bits read from imu
 
 CCOPTS = -Wall -Ofast -std=gnu99 -Wstrict-prototypes $(LIBS) $(INCLUDE_DIRS) $(DEBUG_OPTS)
 

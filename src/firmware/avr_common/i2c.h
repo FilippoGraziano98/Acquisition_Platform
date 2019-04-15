@@ -1,8 +1,3 @@
-/*
- * this version is now obsolete !!
- *		i2c.h and i2c.c contains an interrupt driven uart implementation
- */
-
 #pragma once
 
 #define FREQ_CPU 16000000L	//cpu clock spedd at 16MHz
@@ -14,77 +9,54 @@
 //status indicating START condition successfully sent
 #define TWSR_START 0x08
 #define TWSR_REPEATED_START 0x10
-
+#define TWSR_SLARW_ARB_LOST 0x38
 
 //status codes for Master Transmitter mode (MT)
-//status indicating address packet successfully sent
 #define TWSR_MT_SLA_ACK 0x18
 #define TWSR_MT_SLA_NACK 0x20
-//status indicating data packet successfully sent
 #define TWSR_MT_DATA_ACK 0x28
 #define TWSR_MT_DATA_NACK 0x30
 
-
 //status codes for Master Receiver mode (MR)
-//status indicating address packet successfully sent
 #define TWSR_MR_SLA_ACK 0x40
 #define TWSR_MR_SLA_NACK 0x48
-//status indicating data packet successfully sent
 #define TWSR_MR_DATA_ACK 0x50
 #define TWSR_MR_DATA_NACK 0x58
+
+typedef void(*PostProcessFunction_t)(uint8_t* buffer, uint8_t buflen);
+
+typedef struct I2C_Operation {
+	struct I2C_Operation* next;	//linked list of remaining ops
+	uint8_t device_address;//7 bits for device_address, 1 bit for read/write
+	
+	//note: if write device_reg will be first byte in buffer
+		// if read buffer starts as empty
+	uint8_t* buffer;	//full if write, empty if read
+	uint8_t buflen;		//length of the buffer (#data to read/write)
+	uint8_t bufpos;		//current pos in buffer
+	
+	PostProcessFunction_t post_process_fn; //to store values if it was a read op
+} I2C_Operation;
 
 /*
  *	This function is used to initialize the I2c Module.
  */
 void I2C_Init(void);
 
-
 /*
- *	This function is used to generate I2C Start Condition.
- *		Start Condition: SDA goes low when SCL is High.
- *	@return: 1 if ok, 0 else
+ * I2C_ReadNRegisters: reads from n consecutive registers
+ *	@param device_address : address of device on the bus
+ *	@param rw : read/write flag (1 if read, 0 if write)
+ *	@param n : number of contiguos register to read/write
+ *			NOTE: n must be > 0
+ *	@param data : array of n bytes (preallocated) [full if write, empty if read]
+ *			NOTE: if write, device_reg_start must be first byte in data
+ *				 			if read, data can be null
+ *	@param post_process_fn : function to be called when operation finished
+ *			NOTE: if read, post_process_fn to store data in right variables
+ *				 			if write, post_process_fn can be null
+ *	@param post_process_args_n : number of post_process_args for the post_process_fn
+ *			NOTE: post_process_args_n must be <= MAX_POST_PROCESS_ARGS
+ *	@param post_process_args : post_process_args for the post_process_fn
  */
-uint8_t I2C_Start(void);
-
-/*
- *	This function is used to generate a repeated I2C Start Condition.
- *		Start Condition: SDA goes low when SCL is High.
- *	@return: 1 if ok, 0 else
- */
-uint8_t I2C_Repeated_Start(void);
-
-/*
- *	This function is used to generate I2C Stop Condition.
- *		Stop Condition: SDA goes High when SCL is High.
- */
-void I2C_Stop(void);
-
-/*
- *	This function is used to send a Device Address over the bus
- *	@param address_7bit : is the 7bit address of the slave device
- *													you want to communicate with
- *	@param rw : rw flag to determine if master transmitter/receiver mode
- *								if rw = 1, read
- *								else, write
- *	@return: 1 if ok, 0 else
- */
-uint8_t I2C_SendAddress(uint8_t address_7bit, uint8_t rw);
-
-/*
- *	This function is used to send a byte on SDA line using I2C protocol
- *		8bit data is sent bit-by-bit on each clock cycle.
- *			MSB(bit) is sent first and LSB(bit) is sent at last.
- *		Data is sent when SCL is low.
- *	@return: 1 if ok, 0 else
- */
-uint8_t I2C_Write(uint8_t data);
-
-
-/*
- *	This function is used to receive a byte on SDA line using I2C protocol.
- *		8bit data is received bit-by-bit each clock and finally packed into Byte.
- *			MSB(bit) is received first and LSB(bit) is received at last.
- */
-#define ACK 1
-#define NACK 0
-uint8_t I2C_Read(uint8_t ack);
+void I2C_Enqueue_Operation(uint8_t device_address_7bit, uint8_t rw, uint8_t n, uint8_t* data, PostProcessFunction_t post_process_fn);

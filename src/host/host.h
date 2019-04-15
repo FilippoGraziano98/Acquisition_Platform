@@ -13,6 +13,8 @@ typedef struct Host {
   uint16_t global_seq;
   
 	//these are the system variables, updated by the serial communiction
+  EncoderPacket encoder_packet;
+	
 	IMUConfigurationPacket imu_config_packet;
 	
   AccelerometerPacket accelerometer_packet;
@@ -31,6 +33,12 @@ Host* Host_init(const char* device);
  * 	sends a few (cycles) EchoPacket testing serial connection
  */
 int Host_checkConnection(Host* host, int cycles);
+
+/*
+ * Host_getEncoderData :
+ *  asks the controller for update encoder values
+ */
+int Host_getEncoderData(Host* host);
 
 /*
  * Host_getIMUConfiguration :
@@ -59,6 +67,12 @@ int Host_getGyroscopeData(Host* host);
  * 	and saves it in host->magnetometer_packet
  */
 int Host_getMagnetometerData(Host* host);
+
+/*
+ * Host_printIMUConfiguration :
+ *  prints to stdout encoders
+ */
+void Host_printEncoderData(Host* host);
 
 /*
  * Host_printIMUConfiguration :

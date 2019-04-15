@@ -34,6 +34,7 @@ Host* Host_init(const char* device) {
 	host->global_seq = 0;
 	
 	//initializes global packets memory
+	INIT_PACKET(host->encoder_packet, ENCODER_PACKET_ID);
 	INIT_PACKET(host->imu_config_packet, IMU_CONFIG_PACKET_ID);
 	INIT_PACKET(host->accelerometer_packet, ACCELEROMETER_PACKET_ID);
 	INIT_PACKET(host->gyroscope_packet, GYROSCOPE_PACKET_ID);
@@ -72,6 +73,21 @@ int Host_checkConnection(Host* host, int cycles) {
 		if( memcmp(&send_pkt, &recv_pkt, sizeof(EchoPacket)) !=0 )
 			return -1;
 	}
+	return 0;
+}
+
+int Host_getEncoderData(Host* host) {
+	int res;
+	//asks the controller for update imu configuration
+	res = Host_Serial_sendPacket((PacketHeader*)&(host->encoder_packet));
+	if( res != SERIAL__SUCCESS)
+		printf("[Host_getEncoderData] Host_Serial_sendPacket error_code : %d\n", res);
+	
+	//saves it in host->encoder_packet
+	res = Host_Serial_receivePacket((PacketHeader*)&(host->encoder_packet));
+	if( res != SERIAL__SUCCESS)
+		printf("[Host_getEncoderData] Host_Serial_receivePacket error_code : %d\n", res);
+	
 	return 0;
 }
 
@@ -141,6 +157,11 @@ int Host_getMagnetometerData(Host* host) {
 	return 0;
 }
 
+
+void Host_printEncoderData(Host* host) {
+	printf("[Encoder] counter: %d\n", host->encoder_packet.counter);
+}
+
 void Host_printIMUConfiguration(Host* host) {
 	printf("=== IMU CONFIGURATION ===\n");
 	printf("Gyroscope [seq: %d]:\n", host->imu_config_packet.header.seq);
@@ -150,9 +171,6 @@ void Host_printIMUConfiguration(Host* host) {
 void Host_printIMUData(Host* host) {
 	printf("[Accelerometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", host->global_seq, host->accelerometer_packet.accel_x, host->accelerometer_packet.accel_y, host->accelerometer_packet.accel_z);
 	printf("[Gyroscope %d] x-axis: %f, y-axis: %f, z-axis: %f\n", host->global_seq, host->gyroscope_packet.gyro_x, host->gyroscope_packet.gyro_y, host->gyroscope_packet.gyro_z);
-	#ifdef DEBUG_RAW
-	printf("\t\t\t[raw] x: %d, y: %d, z: %d\n", host->gyroscope_packet.raw_x, host->gyroscope_packet.raw_y, host->gyroscope_packet.raw_z);
-	#endif
 	printf("[Magnetometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", host->global_seq, host->magnetometer_packet.magnet_x, host->magnetometer_packet.magnet_y, host->magnetometer_packet.magnet_z);
 	printf("\n");
 }

@@ -1,11 +1,10 @@
-#include "packet_handler.h"
-
-#include "acquisition_platform.h"
 #include "../../common/packet_header.h"
 #include "../../common/packets.h"
 #include "uart_packets.h"
-
 #include "../imu/imu.h"
+#include "../encoder/encoder.h"
+
+#include "packet_handler.h"
 
 // private packetHandler variable;
 static PacketHandler packetHandler;
@@ -20,22 +19,37 @@ static uint8_t EchoPacketHandler(PacketHeader* pkt) {
 		return PACKET_SEND_INCOMPLETE;
 }
 
+static uint8_t EncoderPacketHandler(PacketHeader* pkt) {
+	if(pkt->type != ENCODER_PACKET_ID)
+		return PACKET_OPS_VECTOR_CORRUPTED;
+	
+	//TODO do we need to update the seq/epoque ??
+	//pkt->seq = ??
+	
+	EncoderPacket* enc_pkt = (EncoderPacket*)pkt;
+	
+	Encoder_getCounts(&(enc_pkt->counter));
+		
+	uint8_t size = UART_send_packet((PacketHeader*)enc_pkt);
+	
+	if( size == pkt->size)
+		return PACKET_OP_SUCCESS;
+	else
+		return PACKET_SEND_INCOMPLETE;
+}
+
 static uint8_t IMUConfigPacketHandler(PacketHeader* pkt) {
 	//we must fill in the gyroscope data
 		//we also set the seq/epoque
 	if(pkt->type != IMU_CONFIG_PACKET_ID)
 		return PACKET_OPS_VECTOR_CORRUPTED;
-		
-	//we update the seq/epoque
-	pkt->seq = AcquisitionPlatform_getGlobalSeq();
+	
+	//TODO do we need to update the seq/epoque ??
+	//pkt->seq = AcquisitionPlatform_getGlobalSeq();
 	
 	IMUConfigurationPacket* imu_config_pkt = (IMUConfigurationPacket*)pkt;
 	
-	GyroscopeCalibrationBiases gyro_biases = AcquisitionPlatform_getGyroscopeBiases();
-		
-	imu_config_pkt->gyro_x_bias = gyro_biases.gyro_x_bias;
-	imu_config_pkt->gyro_y_bias = gyro_biases.gyro_y_bias;
-	imu_config_pkt->gyro_z_bias = gyro_biases.gyro_z_bias;
+	IMU_getCalibrationData(&(imu_config_pkt->gyro_x_bias), &(imu_config_pkt->gyro_y_bias), &(imu_config_pkt->gyro_z_bias));
 		
 	uint8_t size = UART_send_packet((PacketHeader*)imu_config_pkt);
 	
@@ -50,23 +64,10 @@ static uint8_t AccelerometerPacketHandler(PacketHeader* pkt) {
 		//we also set the seq/epoque
 	if(pkt->type != ACCELEROMETER_PACKET_ID)
 		return PACKET_OPS_VECTOR_CORRUPTED;
-	
-	uint16_t global_seq = AcquisitionPlatform_getGlobalSeq();
-	
-	//if host already has updated info, no need to send them again
-	//if( pkt->seq == global_seq )
-		//return PACKET_OP_SUCCESS;
-	
-	//else we update the seq/epoque
-	pkt->seq = global_seq;
-	
+		
 	AccelerometerPacket* accel_pkt = (AccelerometerPacket*)pkt;
 	
-	AccelerometerData acl_data = AcquisitionPlatform_getAccelerometer();
-		
-	accel_pkt->accel_x = acl_data.accel_x;
-	accel_pkt->accel_y = acl_data.accel_y;
-	accel_pkt->accel_z = acl_data.accel_z;
+	pkt->seq = IMU_getAccelerometer(&(accel_pkt->accel_x), &(accel_pkt->accel_y), &(accel_pkt->accel_z));
 		
 	uint8_t size = UART_send_packet((PacketHeader*)accel_pkt);
 	
@@ -82,28 +83,9 @@ static uint8_t GyroscopePacketHandler(PacketHeader* pkt) {
 	if(pkt->type != GYROSCOPE_PACKET_ID)
 		return PACKET_OPS_VECTOR_CORRUPTED;
 	
-	uint16_t global_seq = AcquisitionPlatform_getGlobalSeq();
-	
-	//if host already has updated info, no need to send them again
-	//if( pkt->seq == global_seq )
-		//return PACKET_OP_SUCCESS;
-	
-	//else we update the seq/epoque
-	pkt->seq = global_seq;
-	
 	GyroscopePacket* gyro_pkt = (GyroscopePacket*)pkt;
 	
-	GyroscopeData gyro_data = AcquisitionPlatform_getGyroscope();
-	
-	gyro_pkt->gyro_x = gyro_data.gyro_x;
-	gyro_pkt->gyro_y = gyro_data.gyro_y;
-	gyro_pkt->gyro_z = gyro_data.gyro_z;
-	
-	#ifdef DEBUG_RAW
-	gyro_pkt->raw_x = packetHandler.acq_pl->gyroscope_data.raw_x;
-	gyro_pkt->raw_y = packetHandler.acq_pl->gyroscope_data.raw_y;
-	gyro_pkt->raw_z = packetHandler.acq_pl->gyroscope_data.raw_z;
-	#endif
+	pkt->seq = IMU_getGyroscope(&(gyro_pkt->gyro_x), &(gyro_pkt->gyro_y), &(gyro_pkt->gyro_z));
 	
 	uint8_t size = UART_send_packet((PacketHeader*)gyro_pkt);
 	
@@ -119,22 +101,9 @@ static uint8_t MagnetometerPacketHandler(PacketHeader* pkt) {
 	if(pkt->type != MAGNETOMETER_PACKET_ID)
 		return PACKET_OPS_VECTOR_CORRUPTED;
 	
-	uint16_t global_seq = AcquisitionPlatform_getGlobalSeq();
-	
-	//if host already has updated info, no need to send them again
-	//if( pkt->seq == global_seq )
-		//return PACKET_OP_SUCCESS;
-	
-	//else we update the seq/epoque
-	pkt->seq = global_seq;
-	
 	MagnetometerPacket* magnet_pkt = (MagnetometerPacket*)pkt;
 	
-	MagnetometerData mgn_data = AcquisitionPlatform_getMagnetometer();
-	
-	magnet_pkt->magnet_x = mgn_data.magnet_x;
-	magnet_pkt->magnet_y = mgn_data.magnet_y;
-	magnet_pkt->magnet_z = mgn_data.magnet_z;
+	pkt->seq = IMU_getMagnetometer(&(magnet_pkt->magnet_x), &(magnet_pkt->magnet_y), &(magnet_pkt->magnet_z));
 	
 	uint8_t size = UART_send_packet((PacketHeader*)magnet_pkt);
 	
@@ -147,6 +116,8 @@ static uint8_t MagnetometerPacketHandler(PacketHeader* pkt) {
 void PacketHandler_init(void) {	
 	//initialization of packetOps_vector
 	packetHandler.packetOps_vector[ECHO_PACKET_ID] = EchoPacketHandler;
+	
+	packetHandler.packetOps_vector[ENCODER_PACKET_ID] = EncoderPacketHandler;
 	
 	packetHandler.packetOps_vector[IMU_CONFIG_PACKET_ID] = IMUConfigPacketHandler;
 	
