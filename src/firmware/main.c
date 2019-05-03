@@ -21,12 +21,19 @@ int main(void){
 	UART_Init();
 	I2C_Init();
 	
-	Encoder_Init();
+	#ifdef ENCS
+	Encoders_Init();
+	#endif
+	
+	#ifdef IMU
 	IMU_Init();
- 
+	#endif
+	
 	PacketHandler_init();
 	
+	#ifdef IMU
 	IMU_GyroscopeCalibration();
+	#endif
 	
 	uint8_t buffer[PACKET_MAX_SIZE];
 	PacketHeader* pkt = (PacketHeader*)buffer;

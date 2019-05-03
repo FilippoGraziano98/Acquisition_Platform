@@ -2,18 +2,23 @@
 
 #include "encoder.h"
 
-// Encoder 0
-#define ENC0_CTL	DDRB	//encoder port control
-#define ENC0_WR	PORTB	//encoder port write	
-#define ENC0_RD	PINB	//encoder port read
-#define ENC0_A 1	//PB0, pin 53
-#define ENC0_B 2	//PB1, pin 52
-#define ENC0_MASK (ENC0_A|ENC0_B)
-static Encoder_t Enc0;
+// Encoders
+#define ENC_CTL DDRB	//encoder port control
+#define ENC_WR	PORTB	//encoder port write	
+#define ENC_RD	PINB	//encoder port read
+
+#define ENC0_A 2	//PB1, pin 52
+#define ENC0_B 1	//PB0, pin 53
+#define ENC1_A 4	//PB2, pin 51
+#define ENC1_B 8	//PB3, pin 50
+
+#define ENC_MASK (ENC0_A|ENC0_B|ENC1_A|ENC1_B)
+
+static Encoder_t Encs[NUM_ENCODERS];
 
 //! @brief this represents a transition table
-//!        each entry represents the output of that transition
-//!        the index of the table is [prev_state, next_state]
+//!				each entry represents the output of that transition
+//!				the index of the table is [prev_state, next_state]
 static const int8_t _transition_table []= {
 		0,	//0000
 	 -1,	//0001
@@ -35,24 +40,42 @@ static const int8_t _transition_table []= {
 
 // interrupt routine for position PCINT0
 ISR(PCINT0_vect) {
-  Enc0.prev_value <<=2;  //remember previous state
-  Enc0.prev_value = Enc0.prev_value | ( ENC0_RD & ENC0_MASK );
-  Enc0.counter += _transition_table[ Enc0.prev_value & 0x0F ];
+	uint8_t port_value = ENC_RD & ENC_MASK;
+	
+	uint8_t i;
+	for(i=0; i<NUM_ENCODERS; i++){
+		Encs[i].prev_value <<=2;	//remember previous state
+			// port_value memorizza i valore di tutti gli encoder
+			// &0x03 è perchè consideriamo un encoder alla volta
+			// con >>= 2 a fine ciclo, passiamo all'encoder successivo
+		Encs[i].prev_value = Encs[i].prev_value | ( port_value & 0x03 );
+		Encs[i].counter += _transition_table[ Encs[i].prev_value & 0x0F ];
+		
+		port_value >>= 2;
+	}
 }
 
-void Encoder_Init(void) {
-  ENC0_CTL &= ~ENC0_MASK; //set ENC_MASK pins as input
-  ENC0_WR |= ENC0_MASK; //enable pull up resistors
-  PCICR |= (1 << PCIE0); // set interrupt on change, looking up PCMSK0
-  PCMSK0 |= ENC0_MASK;   // set PCINT0 to trigger an interrupt on state change
-  
-  Enc0.prev_value = 3; //0b11
-  Enc0.counter = 0;
-  
-  sei();
+
+void Encoders_Init(void) {
+	cli();
+
+	ENC_CTL &= ~ENC_MASK;			//set ENC_MASK pins as input
+	ENC_WR |= ENC_MASK; 			//enable pull up resistors
+	PCICR |= (1 << PCIE0); 		//set interrupt on change, looking up PCMSK0
+	PCMSK0 |= ENC_MASK;	 			//set PCINT0 to trigger an interrupt on state change
+
+	uint8_t i;
+	for(i=0; i<NUM_ENCODERS; i++){
+		Encs[i].prev_value = 3; 	//0b11
+		Encs[i].counter = 0;
+	}
+	
+	sei();
 }
 
 
-void Encoder_getCounts(int32_t* cnt0) {
-	*cnt0 = Enc0.counter;
+void Encoders_getCounts(int32_t* cnts) {
+	uint8_t i;
+	for(i=0; i<NUM_ENCODERS; i++)
+		cnts[i] = Encs[i].counter;
 }

@@ -159,7 +159,9 @@ int Host_getMagnetometerData(Host* host) {
 
 
 void Host_printEncoderData(Host* host) {
-	printf("[Encoder] counter: %d\n", host->encoder_packet.counter);
+	printf("[EncoderLeft] counter: %d\n", host->encoder_packet.counters[0]);
+	printf("[EncoderRight] counter: %d\n", host->encoder_packet.counters[1]);
+	printf("\n");
 }
 
 void Host_printIMUConfiguration(Host* host) {

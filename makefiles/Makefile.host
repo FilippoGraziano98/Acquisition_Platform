@@ -3,13 +3,16 @@ LIBS = -lpthread
 
 CC = gcc
 
+#SENSORS += -DIMU
+SENSORS += -DENCS
+
 DEBUG_OPTS = -g
 
-CCOPTS = -Wall -Ofast -std=gnu99 -Wstrict-prototypes $(LIBS) $(INCLUDE_DIRS) $(DEBUG_OPTS)
+CCOPTS = -Wall -Ofast -std=gnu99 -Wstrict-prototypes $(LIBS) $(INCLUDE_DIRS) $(DEBUG_OPTS) $(SENSORS)
 
 HEADERS = host.h serial.h serial_communication.h
 OBJS = host.o serial.o serial_communication.o
-BINS = acquisition_platform
+BINS = main
 
 .phony: clean all
 
@@ -24,7 +27,7 @@ all: $(BINS)
 %.o : ../src/host/serial/%.c
 	$(CC) $(CCOPTS) -c -o $@  $<
 
-acquisition_platform: ../src/host/main.c $(OBJS)
+main: ../src/host/main.c $(OBJS)
 	$(CC) $(CCOPTS) -o $@ $^ $(LIBS)
 
 clean:

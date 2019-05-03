@@ -62,18 +62,36 @@ int main(int argc, char** argv) {
 		goto EXIT;
 	}
 	
+	#ifdef IMU
 	Host_getIMUConfiguration(host);
 	Host_printIMUConfiguration(host);
+	#endif
+	
+	#ifdef IMU
+	printf("IMU\n");
+	#else
+	printf("no IMU\n");	
+	#endif
+	#ifdef ENCS
+	printf("ENCS\n");
+	#else
+	printf("no ENCS\n");	
+	#endif
+	
 	
 	while(1) {
+		#ifdef ENCS
 		Host_getEncoderData(host);
 		Host_printEncoderData(host);
+		#endif
 		
+		#ifdef IMU
 		Host_getAccelerometerData(host);
 		Host_getGyroscopeData(host);
 		Host_getMagnetometerData(host);
 		
 		Host_printIMUData(host);
+		#endif
 		
 		sleep(1);
 	}

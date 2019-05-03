@@ -28,7 +28,7 @@ static uint8_t EncoderPacketHandler(PacketHeader* pkt) {
 	
 	EncoderPacket* enc_pkt = (EncoderPacket*)pkt;
 	
-	Encoder_getCounts(&(enc_pkt->counter));
+	Encoders_getCounts(enc_pkt->counters);
 		
 	uint8_t size = UART_send_packet((PacketHeader*)enc_pkt);
 	

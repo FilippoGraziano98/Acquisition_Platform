@@ -1,8 +1,7 @@
 #pragma once
 #include "packet_header.h"
 
-//#define NUM_JOINTS 2
-#define ORAZIO_PROTOCOL_VERSION 0x20190324
+#include "../firmware/encoder/encoder.h"	//for NUM_ENCODERS
 
 //TODO set seq to a global epoque id
   // simple macro to initialize a packet
@@ -41,7 +40,7 @@ typedef struct {
 
 typedef struct {
   PacketHeader header;
-	int32_t counter;
+	int32_t counters[NUM_ENCODERS];
 } EncoderPacket;
 #define ENCODER_PACKET_ID 1
 
