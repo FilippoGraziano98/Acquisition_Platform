@@ -7,6 +7,8 @@
 #define ENC_WR	PORTB	//encoder port write	
 #define ENC_RD	PINB	//encoder port read
 
+	//ENC0 : is left encoder
+	//ENC1 : is right encoder
 #define ENC0_A 2	//PB1, pin 52
 #define ENC0_B 1	//PB0, pin 53
 #define ENC1_A 4	//PB2, pin 51
@@ -65,7 +67,7 @@ void Encoders_Init(void) {
 	PCMSK0 |= ENC_MASK;	 			//set PCINT0 to trigger an interrupt on state change
 
 	uint8_t i;
-	for(i=0; i<NUM_ENCODERS; i++){
+	for(i=0; i<NUM_ENCODERS; i++) {
 		Encs[i].prev_value = 3; 	//0b11
 		Encs[i].counter = 0;
 	}

@@ -14,6 +14,7 @@ typedef struct Host {
   
 	//these are the system variables, updated by the serial communiction
   EncoderPacket encoder_packet;
+	OdometryPacket odom_packet;
 	
 	IMUConfigurationPacket imu_config_packet;
 	
@@ -39,6 +40,12 @@ int Host_checkConnection(Host* host, int cycles);
  *  asks the controller for update encoder values
  */
 int Host_getEncoderData(Host* host);
+
+/*
+ * Host_getEncoderData :
+ *  asks the controller for update odometry status
+ */
+int Host_getOdometryData(Host* host);
 
 /*
  * Host_getIMUConfiguration :
@@ -73,6 +80,12 @@ int Host_getMagnetometerData(Host* host);
  *  prints to stdout encoders
  */
 void Host_printEncoderData(Host* host);
+
+/*
+ * Host_printIMUConfiguration :
+ *  prints to stdout odometry status
+ */
+void Host_printOdometryData(Host* host);
 
 /*
  * Host_printIMUConfiguration :

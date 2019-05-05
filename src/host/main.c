@@ -70,19 +70,19 @@ int main(int argc, char** argv) {
 	#ifdef IMU
 	printf("IMU\n");
 	#else
-	printf("no IMU\n");	
+	printf("no IMU\n");
 	#endif
 	#ifdef ENCS
 	printf("ENCS\n");
 	#else
-	printf("no ENCS\n");	
+	printf("no ENCS\n");
 	#endif
 	
 	
 	while(1) {
 		#ifdef ENCS
-		Host_getEncoderData(host);
-		Host_printEncoderData(host);
+		Host_getOdometryData(host);
+		Host_printOdometryData(host);
 		#endif
 		
 		#ifdef IMU

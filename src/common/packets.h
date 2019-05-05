@@ -19,14 +19,16 @@
 
 #define PACKET_MIN_SIZE (MIN_SIZE(sizeof(EchoPacket),\
 													MIN_SIZE(sizeof(EncoderPacket),\
+													MAX_SIZE(sizeof(OdometryPacket),\
 													MIN_SIZE(sizeof(IMUConfigurationPacket),\
 													MIN_SIZE(sizeof(AccelerometerPacket),\
-													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))
+													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket))))))))
 #define PACKET_MAX_SIZE (MAX_SIZE(sizeof(EchoPacket),\
 													MAX_SIZE(sizeof(EncoderPacket),\
+													MAX_SIZE(sizeof(OdometryPacket),\
 													MAX_SIZE(sizeof(IMUConfigurationPacket),\
 													MAX_SIZE(sizeof(AccelerometerPacket),\
-													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))
+													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket))))))))
 
 #pragma pack(push, 1)
 
@@ -46,11 +48,34 @@ typedef struct {
 
 typedef struct {
   PacketHeader header;
+	#ifdef DEBUG_ODOM
+	int32_t enc_left;
+	int32_t enc_rigtht;
+	
+	float delta_l;
+	float delta_r;
+	
+	float delta_x;
+	float delta_y;
+	float delta_theta;
+	#endif
+	
+	float odom_x;
+	float odom_y;
+	float odom_theta;
+	
+	float translational_velocity;
+	float rotational_velocity;
+} OdometryPacket;
+#define ODOMETRY_PACKET_ID 2
+
+typedef struct {
+  PacketHeader header;
 	int16_t gyro_x_bias;		//gyroscope
 	int16_t gyro_y_bias;
 	int16_t gyro_z_bias;
 } IMUConfigurationPacket;
-#define IMU_CONFIG_PACKET_ID 2
+#define IMU_CONFIG_PACKET_ID 3
 
 
 //NOTE: according to
@@ -66,7 +91,7 @@ typedef struct {
 	float accel_y;		// [ note: G-forces -> a single G-force for us here on planet Earth is equivalent to 9.8 m/s^2 ]
 	float accel_z;
 } AccelerometerPacket;
-#define ACCELEROMETER_PACKET_ID 3
+#define ACCELEROMETER_PACKET_ID 4
 
 typedef struct {
   PacketHeader header;
@@ -74,7 +99,7 @@ typedef struct {
 	float gyro_y;			// [ note: DPS, Degrees Per Second ]
 	float gyro_z;
 } GyroscopePacket;
-#define GYROSCOPE_PACKET_ID 4
+#define GYROSCOPE_PACKET_ID 5
 
 typedef struct {
   PacketHeader header;
@@ -82,6 +107,6 @@ typedef struct {
 	float magnet_y;
 	float magnet_z;
 } MagnetometerPacket;
-#define MAGNETOMETER_PACKET_ID 5
+#define MAGNETOMETER_PACKET_ID 6
 
 #pragma pack(pop)

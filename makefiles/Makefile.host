@@ -7,6 +7,7 @@ CC = gcc
 SENSORS += -DENCS
 
 DEBUG_OPTS = -g
+DEBUG_OPTS += -DDEBUG_ODOM
 
 CCOPTS = -Wall -Ofast -std=gnu99 -Wstrict-prototypes $(LIBS) $(INCLUDE_DIRS) $(DEBUG_OPTS) $(SENSORS)
 

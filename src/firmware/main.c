@@ -7,6 +7,7 @@
 #include "avr_common/uart.h"
 #include "avr_common/i2c.h"
 #include "encoder/encoder.h"
+#include "encoder/encoder_odometry.h"
 #include "imu/imu.h"
 #include "packets/uart_packets.h"
 #include "packets/packet_handler.h"
@@ -17,12 +18,14 @@
 #include <stdio.h>
 #endif
 
+
 int main(void){
 	UART_Init();
 	I2C_Init();
 	
 	#ifdef ENCS
 	Encoders_Init();
+	Encoder_OdometryInit();
 	#endif
 	
 	#ifdef IMU

@@ -1,6 +1,9 @@
 #pragma once
+#include <stdint.h>
 
 #define NUM_ENCODERS 2
+// empirically checked that wit a 180 degrees turn encoder from 0 goes to 40
+#define ENCODER_TICKS_FOR_HALF_TURN 40
 
 typedef struct Encoder_t {
 	uint8_t prev_value;	// previous state of the encoder

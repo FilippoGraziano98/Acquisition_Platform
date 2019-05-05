@@ -3,6 +3,7 @@
 #include "uart_packets.h"
 #include "../imu/imu.h"
 #include "../encoder/encoder.h"
+#include "../encoder/encoder_odometry.h"
 
 #include "packet_handler.h"
 
@@ -31,6 +32,29 @@ static uint8_t EncoderPacketHandler(PacketHeader* pkt) {
 	Encoders_getCounts(enc_pkt->counters);
 		
 	uint8_t size = UART_send_packet((PacketHeader*)enc_pkt);
+	
+	if( size == pkt->size)
+		return PACKET_OP_SUCCESS;
+	else
+		return PACKET_SEND_INCOMPLETE;
+}
+
+static uint8_t OdomPacketHandler(PacketHeader* pkt) {
+	if(pkt->type != ODOMETRY_PACKET_ID)
+		return PACKET_OPS_VECTOR_CORRUPTED;
+	
+	//TODO do we need to update the seq/epoque ??
+	//pkt->seq = ??
+	
+	OdometryPacket* odom_pkt = (OdometryPacket*)pkt;
+	
+	#ifndef DEBUG_ODOM
+	pkt->seq = Encoder_getOdometry(&(odom_pkt->odom_x), &(odom_pkt->odom_y), &(odom_pkt->odom_theta), &(odom_pkt->translational_velocity), &(odom_pkt->rotational_velocity));
+	#else
+	pkt->seq = Encoder_getOdometry(&(odom_pkt->odom_x), &(odom_pkt->odom_y), &(odom_pkt->odom_theta), &(odom_pkt->translational_velocity), &(odom_pkt->rotational_velocity), &(odom_pkt->enc_left), &(odom_pkt->enc_rigtht), &(odom_pkt->delta_l), &(odom_pkt->delta_r), &(odom_pkt->delta_x), &(odom_pkt->delta_y), &(odom_pkt->delta_theta));
+	#endif
+		
+	uint8_t size = UART_send_packet((PacketHeader*)odom_pkt);
 	
 	if( size == pkt->size)
 		return PACKET_OP_SUCCESS;
@@ -118,6 +142,7 @@ void PacketHandler_init(void) {
 	packetHandler.packetOps_vector[ECHO_PACKET_ID] = EchoPacketHandler;
 	
 	packetHandler.packetOps_vector[ENCODER_PACKET_ID] = EncoderPacketHandler;
+	packetHandler.packetOps_vector[ODOMETRY_PACKET_ID] = OdomPacketHandler;
 	
 	packetHandler.packetOps_vector[IMU_CONFIG_PACKET_ID] = IMUConfigPacketHandler;
 	

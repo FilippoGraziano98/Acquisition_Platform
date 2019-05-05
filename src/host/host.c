@@ -35,6 +35,7 @@ Host* Host_init(const char* device) {
 	
 	//initializes global packets memory
 	INIT_PACKET(host->encoder_packet, ENCODER_PACKET_ID);
+	INIT_PACKET(host->odom_packet, ODOMETRY_PACKET_ID);
 	INIT_PACKET(host->imu_config_packet, IMU_CONFIG_PACKET_ID);
 	INIT_PACKET(host->accelerometer_packet, ACCELEROMETER_PACKET_ID);
 	INIT_PACKET(host->gyroscope_packet, GYROSCOPE_PACKET_ID);
@@ -87,6 +88,21 @@ int Host_getEncoderData(Host* host) {
 	res = Host_Serial_receivePacket((PacketHeader*)&(host->encoder_packet));
 	if( res != SERIAL__SUCCESS)
 		printf("[Host_getEncoderData] Host_Serial_receivePacket error_code : %d\n", res);
+	
+	return 0;
+}
+
+int Host_getOdometryData(Host* host) {
+	int res;
+	//asks the controller for update imu configuration
+	res = Host_Serial_sendPacket((PacketHeader*)&(host->odom_packet));
+	if( res != SERIAL__SUCCESS)
+		printf("[Host_getOdometryData] Host_Serial_sendPacket error_code : %d\n", res);
+	
+	//saves it in host->odom_packet
+	res = Host_Serial_receivePacket((PacketHeader*)&(host->odom_packet));
+	if( res != SERIAL__SUCCESS)
+		printf("[Host_getOdometryData] Host_Serial_receivePacket error_code : %d\n", res);
 	
 	return 0;
 }
@@ -161,6 +177,19 @@ int Host_getMagnetometerData(Host* host) {
 void Host_printEncoderData(Host* host) {
 	printf("[EncoderLeft] counter: %d\n", host->encoder_packet.counters[0]);
 	printf("[EncoderRight] counter: %d\n", host->encoder_packet.counters[1]);
+	printf("\n");
+}
+
+void Host_printOdometryData(Host* host) {
+	#ifdef DEBUG_ODOM
+	printf("left %fm [%u ticks], right %fm [%u ticks]\n", host->odom_packet.delta_l, host->odom_packet.enc_left, host->odom_packet.delta_r, host->odom_packet.enc_rigtht);
+
+	printf("delta_x %fm, delta_y %fm, delta_theta %f\n", host->odom_packet.delta_x, host->odom_packet.delta_y, host->odom_packet.delta_theta);
+	#endif
+	
+	printf("odom_x %fm, odom_y %fm, odom_theta %f\n", host->odom_packet.odom_x, host->odom_packet.odom_y, host->odom_packet.odom_theta);
+	printf("translational_velocity %fm/s, rotational_velocity %frad/s\n", host->odom_packet.translational_velocity, host->odom_packet.rotational_velocity);
+	
 	printf("\n");
 }
 
