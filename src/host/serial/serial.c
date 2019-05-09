@@ -163,3 +163,9 @@ int serial_receive(int fd, uint8_t* buf, uint8_t size) {
 	
 	return recv;
 }
+
+void serial_reset(int fd) {
+	uint8_t junk;
+	while( serial_sleep_until_input(fd, 0, 10000) > 0 )
+		serial_receive(fd, &junk, 1);
+}

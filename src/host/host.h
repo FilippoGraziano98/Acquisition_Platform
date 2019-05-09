@@ -4,7 +4,7 @@
 
 #include "../common/packets.h"
 
-typedef struct Host {
+typedef struct Host_t {
 	// file descriptor of the serial port
 	int serial_fd;
 	//uint8_t packet_buffer[PACKET_SIZE_MAX];
@@ -21,83 +21,42 @@ typedef struct Host {
   AccelerometerPacket accelerometer_packet;
   GyroscopePacket gyroscope_packet;
   MagnetometerPacket magnetometer_packet;
-} Host;
+} Host_t;
 
 /*
  * Host_init :
- * 	creates a new host, opening a serial connection on a device
+ * 	initializes the global host, opening a serial connection on a device
  */
-Host* Host_init(const char* device);
+int Host_init(const char* device);
 
 /*
  * Host_checkConnection :
  * 	sends a few (cycles) EchoPacket testing serial connection
  */
-int Host_checkConnection(Host* host, int cycles);
+int Host_checkConnection(int cycles);
 
 /*
- * Host_getEncoderData :
- *  asks the controller for update encoder values
+ * Host_get<...>Data :
+ *	sends correspondent packet to the controller
+ *		( not waiting for the answer )
+ *  	asking the controller for updated data
  */
-int Host_getEncoderData(Host* host);
+int Host_getEncoderData(void);	//deprecated
+int Host_getOdometryData(void);	//deprecated
+int Host_getIMUConfiguration(void);
+int Host_getAccelerometerData(void);
+int Host_getGyroscopeData(void);
+int Host_getMagnetometerData(void);
+
 
 /*
- * Host_getEncoderData :
- *  asks the controller for update odometry status
+ * Host_print<...>Data :
+ *  prints to stdout correspondent data
  */
-int Host_getOdometryData(Host* host);
-
-/*
- * Host_getIMUConfiguration :
- *  asks the controller for update imu configuration
- * 	and saves it in host->imu_config_packet
- */
-int Host_getIMUConfiguration(Host* host);
-
-/*
- * Host_getAccelerometerData :
- *  asks the controller for update accelerometer_data
- * 	and saves it in host->acceleremoter_packet
- */
-int Host_getAccelerometerData(Host* host);
-
-/*
- * Host_getGyroscopeData :
- *  asks the controller for update gyroscope_data
- * 	and saves it in host->gyroscope_packet
- */
-int Host_getGyroscopeData(Host* host);
-
-/*
- * Host_getMagnetometerData :
- *  asks the controller for update magnetometer_data
- * 	and saves it in host->magnetometer_packet
- */
-int Host_getMagnetometerData(Host* host);
-
-/*
- * Host_printIMUConfiguration :
- *  prints to stdout encoders
- */
-void Host_printEncoderData(Host* host);
-
-/*
- * Host_printIMUConfiguration :
- *  prints to stdout odometry status
- */
-void Host_printOdometryData(Host* host);
-
-/*
- * Host_printIMUConfiguration :
- *  prints to stdout imu configuration
- */
-void Host_printIMUConfiguration(Host* host);
-
-/*
- * Host_printIMUData :
- *  prints to stdout accelerometer_data, gyroscope_data
- */
-void Host_printIMUData(Host* host);
+void Host_printEncoderData(void);
+void Host_printOdometryData(void);
+void Host_printIMUConfiguration(void);
+void Host_printIMUData(void);
 
 /*
  * Host_destroy :
@@ -106,4 +65,4 @@ void Host_printIMUData(Host* host);
  *			0 on success,
  *			on error, -1 is returned, and errno is set by close
  */
-int Host_destroy(Host* host);
+int Host_destroy(void);

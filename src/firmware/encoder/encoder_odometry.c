@@ -3,12 +3,9 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 
+#include "../packets/uart_packets.h"
+
 #include "encoder_odometry.h"
-
-
-#ifdef DEBUG_PRINTF
-#include <stdio.h>
-#endif
 
 
 static Encoder_OdometryController_t Encoder_OdometryController;
@@ -30,7 +27,7 @@ static void computeThetaTerms(float* sin_theta_over_theta, float* one_minus_cos_
 	}
 }
 
-ISR(TIMER2_COMPA_vect) {
+ISR(TIMER3_COMPA_vect) {
 	Encoder_OdometryUpdate();
 
 	Encoder_OdometryController.enc_time_seq++;
@@ -41,8 +38,8 @@ static void Encoder_setPeriodicOdometryUpdate(uint16_t frequency) {
   uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
   
   // configure timer1, prescaler : 256, CTC (Clear Timer on Compare match)
-  TCCR2A = 0;
-  TCCR2B = (1 << WGM12) | (1 << CS12); 
+  TCCR3A = 0;
+  TCCR3B = (1 << WGM12) | (1 << CS12); 
   
   /*
 	 * cpu frequency 16MHz = 16.000.000 Hz
@@ -50,13 +47,13 @@ static void Encoder_setPeriodicOdometryUpdate(uint16_t frequency) {
 	 *	-->> TCNT1 increased at a frequency of 16.000.000/256 Hz = 62500 Hz
 	 *	so 1 ms will correspond do 62.5 counts
 	 */
-  OCR2A = (uint16_t)(62.5 * period_ms);
+  OCR3A = (uint16_t)(62.5 * period_ms);
 
 	// timer-interrupt enabling will be executed atomically (no other interrupts)
 		// and ATOMIC_FORCEON ensures Global Interrupt Status flag bit in SREG set afetrwards
 		// (sei() not needed)
   ATOMIC_BLOCK(ATOMIC_FORCEON) {
-  	TIMSK2 |= (1 << OCIE2A);  // enable the timer interrupt (istruz. elementare, no interrupt)
+  	TIMSK3 |= (1 << OCIE3A);  // enable the timer interrupt (istruz. elementare, no interrupt)
   }
 }
 
@@ -66,12 +63,25 @@ void Encoder_OdometryInit(void) {
 	
 	Encoder_OdometryController.delta_time = 1. / (float)ODOMETRY_UPDATE_RATE;
 
-	Encoder_OdometryController.odom_x = 0.;
-	Encoder_OdometryController.odom_y = 0.;
-	Encoder_OdometryController.odom_theta = 0.;
+	INIT_PACKET(Encoder_OdometryController.odometry_status, ODOMETRY_PACKET_ID);
+	#ifdef DEBUG_ODOM
+	Encoder_OdometryController.odometry_status.enc_left = 0;
+	Encoder_OdometryController.odometry_status.enc_right = 0;
+	
+	Encoder_OdometryController.odometry_status.delta_l = 0.;
+	Encoder_OdometryController.odometry_status.delta_r = 0.;
+	
+	Encoder_OdometryController.odometry_status.delta_x = 0.;
+	Encoder_OdometryController.odometry_status.delta_y = 0.;
+	Encoder_OdometryController.odometry_status.delta_theta = 0.;
+	#endif
+	
+	Encoder_OdometryController.odometry_status.odom_x = 0.;
+	Encoder_OdometryController.odometry_status.odom_y = 0.;
+	Encoder_OdometryController.odometry_status.odom_theta = 0.;
 
-	Encoder_OdometryController.translational_velocity = 0.;
-	Encoder_OdometryController.rotational_velocity = 0.;
+	Encoder_OdometryController.odometry_status.translational_velocity = 0.;
+	Encoder_OdometryController.odometry_status.rotational_velocity = 0.;
 
 	uint8_t i;
 	for(i=0; i<NUM_ENCODERS; i++)
@@ -111,56 +121,62 @@ void Encoder_OdometryUpdate(void) {
 		float delta_y = .5 * delta_plus * one_minus_cos_dtheta_over_dtheta;		
 		
 		#ifdef DEBUG_ODOM
-		Encoder_OdometryController.enc_left = left_ticks;
-		Encoder_OdometryController.enc_right = right_ticks;
-		Encoder_OdometryController.delta_l = delta_l;
-		Encoder_OdometryController.delta_r = delta_r;
-		Encoder_OdometryController.delta_x = delta_x;
-		Encoder_OdometryController.delta_y = delta_y;
-		Encoder_OdometryController.delta_theta = delta_theta;
+		Encoder_OdometryController.odometry_status.enc_left = left_ticks;
+		Encoder_OdometryController.odometry_status.enc_right = right_ticks;
+		Encoder_OdometryController.odometry_status.delta_l = delta_l;
+		Encoder_OdometryController.odometry_status.delta_r = delta_r;
+		Encoder_OdometryController.odometry_status.delta_x = delta_x;
+		Encoder_OdometryController.odometry_status.delta_y = delta_y;
+		Encoder_OdometryController.odometry_status.delta_theta = delta_theta;
 		#endif
 		
 		//update global odometry
-		float sin_theta = sin(Encoder_OdometryController.odom_theta);
-		float cos_theta = cos(Encoder_OdometryController.odom_theta);
+		float sin_theta = sin(Encoder_OdometryController.odometry_status.odom_theta);
+		float cos_theta = cos(Encoder_OdometryController.odometry_status.odom_theta);
 		
-		Encoder_OdometryController.odom_x += delta_x*cos_theta - delta_y*sin_theta;
-		Encoder_OdometryController.odom_y += delta_x*sin_theta + delta_y*cos_theta;
-		Encoder_OdometryController.odom_theta += delta_theta;
+		Encoder_OdometryController.odometry_status.odom_x += delta_x*cos_theta - delta_y*sin_theta;
+		Encoder_OdometryController.odometry_status.odom_y += delta_x*sin_theta + delta_y*cos_theta;
+		Encoder_OdometryController.odometry_status.odom_theta += delta_theta;
 		
 		//update global current volocity
-		Encoder_OdometryController.translational_velocity = .5 * delta_plus / Encoder_OdometryController.delta_time;
-		Encoder_OdometryController.rotational_velocity = delta_theta / Encoder_OdometryController.delta_time;
+		Encoder_OdometryController.odometry_status.translational_velocity = .5 * delta_plus / Encoder_OdometryController.delta_time;
+		Encoder_OdometryController.odometry_status.rotational_velocity = delta_theta / Encoder_OdometryController.delta_time;
 	}
 }
 
 #ifndef DEBUG_ODOM
 uint16_t Encoder_getOdometry(float* odom_x, float* odom_y, float* odom_theta, float* t_vel, float* r_vel) {
-	*odom_x = Encoder_OdometryController.odom_x;
-	*odom_y = Encoder_OdometryController.odom_y;
-	*odom_theta = Encoder_OdometryController.odom_theta;
+	*odom_x = Encoder_OdometryController.odometry_status.odom_x;
+	*odom_y = Encoder_OdometryController.odometry_status.odom_y;
+	*odom_theta = Encoder_OdometryController.odometry_status.odom_theta;
 	
-	*t_vel = Encoder_OdometryController.translational_velocity;
-	*r_vel = Encoder_OdometryController.rotational_velocity;
+	*t_vel = Encoder_OdometryController.odometry_status.translational_velocity;
+	*r_vel = Encoder_OdometryController.odometry_status.rotational_velocity;
 	
 	return Encoder_OdometryController.enc_time_seq;
 }
 #else
 uint16_t Encoder_getOdometry(float* odom_x, float* odom_y, float* odom_theta, float* t_vel, float* r_vel, int32_t* enc_left, int32_t* enc_right, float* delta_l, float* delta_r, float* delta_x, float* delta_y, float* delta_theta) {
-	*odom_x = Encoder_OdometryController.odom_x;
-	*odom_y = Encoder_OdometryController.odom_y;
-	*odom_theta = Encoder_OdometryController.odom_theta;
-	*t_vel = Encoder_OdometryController.translational_velocity;
-	*r_vel = Encoder_OdometryController.rotational_velocity;
+	*odom_x = Encoder_OdometryController.odometry_status.odom_x;
+	*odom_y = Encoder_OdometryController.odometry_status.odom_y;
+	*odom_theta = Encoder_OdometryController.odometry_status.odom_theta;
+	*t_vel = Encoder_OdometryController.odometry_status.translational_velocity;
+	*r_vel = Encoder_OdometryController.odometry_status.rotational_velocity;
 	
-	*enc_left = Encoder_OdometryController.enc_left;
-	*enc_right = Encoder_OdometryController.enc_right;
-	*delta_l = Encoder_OdometryController.delta_l;
-	*delta_r = Encoder_OdometryController.delta_r;
-	*delta_x = Encoder_OdometryController.delta_x;
-	*delta_y = Encoder_OdometryController.delta_y;
-	*delta_theta = Encoder_OdometryController.delta_theta;
+	*enc_left = Encoder_OdometryController.odometry_status.enc_left;
+	*enc_right = Encoder_OdometryController.odometry_status.enc_right;
+	*delta_l = Encoder_OdometryController.odometry_status.delta_l;
+	*delta_r = Encoder_OdometryController.odometry_status.delta_r;
+	*delta_x = Encoder_OdometryController.odometry_status.delta_x;
+	*delta_y = Encoder_OdometryController.odometry_status.delta_y;
+	*delta_theta = Encoder_OdometryController.odometry_status.delta_theta;
 	
 	return Encoder_OdometryController.enc_time_seq;
 }
 #endif
+
+
+uint8_t Encoder_sendOdometryToHost(void) {
+	Encoder_OdometryController.odometry_status.header.seq = Encoder_OdometryController.enc_time_seq;
+	return UART_send_packet((PacketHeader*)&(Encoder_OdometryController.odometry_status));
+}

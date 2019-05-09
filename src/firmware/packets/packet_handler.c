@@ -51,7 +51,7 @@ static uint8_t OdomPacketHandler(PacketHeader* pkt) {
 	#ifndef DEBUG_ODOM
 	pkt->seq = Encoder_getOdometry(&(odom_pkt->odom_x), &(odom_pkt->odom_y), &(odom_pkt->odom_theta), &(odom_pkt->translational_velocity), &(odom_pkt->rotational_velocity));
 	#else
-	pkt->seq = Encoder_getOdometry(&(odom_pkt->odom_x), &(odom_pkt->odom_y), &(odom_pkt->odom_theta), &(odom_pkt->translational_velocity), &(odom_pkt->rotational_velocity), &(odom_pkt->enc_left), &(odom_pkt->enc_rigtht), &(odom_pkt->delta_l), &(odom_pkt->delta_r), &(odom_pkt->delta_x), &(odom_pkt->delta_y), &(odom_pkt->delta_theta));
+	pkt->seq = Encoder_getOdometry(&(odom_pkt->odom_x), &(odom_pkt->odom_y), &(odom_pkt->odom_theta), &(odom_pkt->translational_velocity), &(odom_pkt->rotational_velocity), &(odom_pkt->enc_left), &(odom_pkt->enc_right), &(odom_pkt->delta_l), &(odom_pkt->delta_r), &(odom_pkt->delta_x), &(odom_pkt->delta_y), &(odom_pkt->delta_theta));
 	#endif
 		
 	uint8_t size = UART_send_packet((PacketHeader*)odom_pkt);

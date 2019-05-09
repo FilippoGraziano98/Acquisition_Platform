@@ -1,1 +1,1 @@
-../makefiles/Makefile.firmware
+../makefiles/Makefile_firmware.mk

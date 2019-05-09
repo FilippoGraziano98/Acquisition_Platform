@@ -19,26 +19,8 @@ typedef struct Encoder_OdometryController_t{
 	//time between two consecutive updates
 	float delta_time;	//secs
 	
-	#ifdef DEBUG_ODOM
-	int32_t enc_left;
-	int32_t enc_right;
-	
-	float delta_l;
-	float delta_r;
-	
-	float delta_x;
-	float delta_y;
-	float delta_theta;	
-	#endif
-	
-	//global odometry of the robot
-	float odom_x;
-	float odom_y;
-	float odom_theta;
-	
-	//current velocity of the robot
-	float translational_velocity;
-	float rotational_velocity;
+	//odometry is stored in a packet ready to be sent
+	OdometryPacket odometry_status;
 	
 	// encoder saved from the previous iteration
 	int32_t encs_cnt_previous[NUM_ENCODERS];
@@ -61,3 +43,5 @@ uint16_t Encoder_getOdometry(float* odom_x, float* odom_y, float* odom_theta, fl
 #else
 uint16_t Encoder_getOdometry(float* odom_x, float* odom_y, float* odom_theta, float* t_vel, float* r_vel, int32_t* enc_left, int32_t* enc_right, float* delta_l, float* delta_r, float* delta_x, float* delta_y, float* delta_theta);
 #endif
+
+uint8_t Encoder_sendOdometryToHost(void);

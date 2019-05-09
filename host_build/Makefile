@@ -1,1 +1,1 @@
-../makefiles/Makefile.host
+../makefiles/Makefile_host.mk

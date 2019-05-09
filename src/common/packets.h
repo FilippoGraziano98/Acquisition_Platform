@@ -50,7 +50,7 @@ typedef struct {
   PacketHeader header;
 	#ifdef DEBUG_ODOM
 	int32_t enc_left;
-	int32_t enc_rigtht;
+	int32_t enc_right;
 	
 	float delta_l;
 	float delta_r;

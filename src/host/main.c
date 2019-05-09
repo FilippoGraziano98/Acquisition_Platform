@@ -10,17 +10,10 @@
 
 #define SERIAL_NAME "/dev/ttyACM0"
 
-//private Host variable
-static Host* host = NULL;
 
 void SIGINT_handler(int sig){
-	//reads all unread bytes
-	uint8_t junk;
-	while( serial_sleep_until_input(host->serial_fd, 0, 10000) > 0 )
-		serial_receive(host->serial_fd, &junk, 1);
-	
 	//exits
-	int res = Host_destroy(host);
+	int res = Host_destroy();
 	if( !res )
 		printf("[SIGINT] Closed communication with controller on serial port : %s\n", SERIAL_NAME);
 	else
@@ -42,8 +35,12 @@ int install_SIGINT_handler(void){
 int main(int argc, char** argv) {
 	int res;
 	
-	host = Host_init(SERIAL_NAME);
-	if( !host ) {
+	#ifdef DEBUG_PRINTF
+	printf("WARNING: DEBUG_PRINTF is defined, packetization may be broken! Use Cutecom\n");
+	#endif
+	
+	res = Host_init(SERIAL_NAME);
+	if( res ) {
 		printf("[] Error opening communication with controller on serial port : %s\n", SERIAL_NAME);
 		return -1;
 	}
@@ -54,7 +51,7 @@ int main(int argc, char** argv) {
 		perror("[] Error installing SIGINT handler");
 	
 	printf("[] Checking communication with controller...");
-	res = Host_checkConnection(host, 10);
+	res = Host_checkConnection(SYNCHRONIZATION_CYCLES);
 	if( !res )
 		printf("DONE\n");
 	else {
@@ -63,8 +60,8 @@ int main(int argc, char** argv) {
 	}
 	
 	#ifdef IMU
-	Host_getIMUConfiguration(host);
-	Host_printIMUConfiguration(host);
+	Host_getIMUConfiguration();
+	Host_printIMUConfiguration();
 	#endif
 	
 	#ifdef IMU
@@ -81,23 +78,23 @@ int main(int argc, char** argv) {
 	
 	while(1) {
 		#ifdef ENCS
-		Host_getOdometryData(host);
-		Host_printOdometryData(host);
+		//Host_getOdometryData();
+		Host_printOdometryData();
 		#endif
 		
 		#ifdef IMU
-		Host_getAccelerometerData(host);
-		Host_getGyroscopeData(host);
-		Host_getMagnetometerData(host);
+		Host_getAccelerometerData();
+		Host_getGyroscopeData();
+		Host_getMagnetometerData();
 		
-		Host_printIMUData(host);
+		Host_printIMUData();
 		#endif
 		
 		sleep(1);
 	}
 	
 	EXIT:
-		res = Host_destroy(host);
+		res = Host_destroy();
 		if( !res )
 			printf("[] Closed communication with controller on serial port : %s\n", SERIAL_NAME);
 		else

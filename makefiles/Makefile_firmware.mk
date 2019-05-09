@@ -1,15 +1,11 @@
+include ../makefiles/Makefile_common.mk
+
 CC=avr-gcc
 SRCDIR = ../src/firmware
 INCLUDE_DIRS=-I../src/common -I$(SRCDIR)
 
 
-#SENSORS += -DIMU
-SENSORS += -DENCS
-
-#DEBUG_OPTS += -DDEBUG_PRINTF		#use cutecom, no packet handling
-DEBUG_OPTS += -DDEBUG_ODOM
-
-CC_OPTS=-Wall --std=gnu99 -DF_CPU=16000000UL -O3 -funsigned-char -funsigned-bitfields  -fshort-enums -Wall -Wstrict-prototypes -mmcu=atmega2560 $(INCLUDE_DIRS)  -D__AVR_3_BYTE_PC__ $(DEBUG_OPTS) $(SENSORS)
+CC_OPTS=-Wall --std=gnu99 -DF_CPU=16000000UL -O3 -funsigned-char -funsigned-bitfields  -fshort-enums -Wall -Wstrict-prototypes -mmcu=atmega2560 $(INCLUDE_DIRS)  -D__AVR_3_BYTE_PC__ $(DEBUG_OPTS) $(SENSORS) $(COMMON_VARS)
 AS_OPTS=-x assembler-with-cpp $(CC_OPTS)
 
 AVRDUDE = avrdude

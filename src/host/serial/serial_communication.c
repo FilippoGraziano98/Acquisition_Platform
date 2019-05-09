@@ -5,7 +5,7 @@
 #include "serial_communication.h"
 #include "serial.h"
 
-static Host_Serial Host_serial;
+static Host_Serial_t Host_serial;
 
 #define handle_semaphore_error(err, msg) if( err ) { perror(msg); } 
 #define handle_pthread_error(err, msg) if( err ) { errno = err; perror(msg); }
@@ -55,34 +55,79 @@ static void* _txThreadFn(void* args_) {
 }
 
 static void* _rxThreadFn(void* args_) {
-	int err, bytes_to_read, space_in_buffer, space_to_end_buffer, recv_bytes;
+	int err, bytes_to_read, recv_bytes;
+
+	uint8_t _curr_pkt[PACKET_MAX_SIZE] = {0};
+	PacketHeader* curr_pkt = (PacketHeader*)_curr_pkt;
+	uint8_t curr_pkt_size = 0;
+	
 	while(1) {
-		//tries to read up to fill rx_buffer (or at max 128 bytes, NOTE serial_receive gets uint8_t as param, else it overflows)
-		space_to_end_buffer = SERIAL_BUFFER_SIZE - Host_serial.rx_end;
-		space_in_buffer = SERIAL_BUFFER_SIZE - Host_serial.rx_size;
-		bytes_to_read = (space_to_end_buffer < space_in_buffer) ? space_to_end_buffer : space_in_buffer;
-		bytes_to_read = (bytes_to_read < 128) ? bytes_to_read : 128;
-				
-		recv_bytes = serial_receive(Host_serial.serial_fd, (uint8_t*)&(Host_serial.rx_buffer[Host_serial.rx_end]), bytes_to_read);
+		//tries to read up to complete curr_pkt 
+		if( curr_pkt_size == 0 )
+			bytes_to_read = PACKET_MIN_SIZE;
+		else if ( curr_pkt_size < sizeof(PacketHeader))
+			bytes_to_read = PACKET_MIN_SIZE - curr_pkt_size;
+		else
+			bytes_to_read = curr_pkt->size - curr_pkt_size;
+		
+		recv_bytes = serial_receive(Host_serial.serial_fd, (uint8_t*)&(_curr_pkt[curr_pkt_size]), bytes_to_read);
 		if( recv_bytes < 0 )
 			printf("[Host_Serial: _rxThreadFn] Error in serial_receive");
 		
-		Host_serial.rx_end += recv_bytes;
-		if (Host_serial.rx_end >= SERIAL_BUFFER_SIZE)
-			Host_serial.rx_end = 0;
-	
-		//updates rx_size
-		err = sem_wait(&(Host_serial.rx_sem_control));
-		handle_semaphore_error(err, "[Host_Serial: _rxThreadFn] Error in sem_wait on rx_sem_control");
-	
-		Host_serial.rx_size += recv_bytes;
-	
-		err = sem_post(&(Host_serial.rx_sem_control));
-		handle_semaphore_error(err, "[Host_Serial: _rxThreadFn] Error in sem_post on rx_sem_control");
-	
-		//wakes up main thread (if it was waiting data)
-		err = sem_post(&(Host_serial.rx_sem_data));
-		handle_semaphore_error(err, "[Host_Serial: _rxThreadFn] Error in sem_post on rx_sem_data");
+		curr_pkt_size += recv_bytes;
+		
+		
+		if( curr_pkt_size > sizeof(PacketHeader) && curr_pkt_size == curr_pkt->size ) {
+			PacketType pkt_id =	curr_pkt->type;
+			if( pkt_id < 0 || pkt_id > PACKET_MAX_ID ) {
+				printf("[Host_Serial: _rxThreadFn] ERROR: pkt_id (: %d) not in [0, PACKET_MAX_ID], discarding packet\n", pkt_id);
+				goto SKIP;
+			}
+			
+			
+			PacketOpFunctionType pkt_op = Host_serial.packetOps_vector[pkt_id];
+			if( pkt_op )
+				(*pkt_op)(curr_pkt); //TODO ret value ignored??
+			else {
+				//move to rx_buffer (slow)
+				
+				//checks if there is enough space in rx_buffer
+				if( (uint16_t)curr_pkt_size > SERIAL_BUFFER_SIZE - Host_serial.rx_size ) {
+					printf("[Host_Serial: _rxThreadFn] ERROR: rx_buffer full (pkt_ID: %d), discarding packet\n", curr_pkt->type);
+					goto SKIP;
+				}
+				// writes from tx_end to SERIAL_BUFFER_SIZE
+				int wrote_bytes = 0;
+				if ( Host_serial.rx_end + curr_pkt_size >= SERIAL_BUFFER_SIZE ) {
+					wrote_bytes = SERIAL_BUFFER_SIZE - Host_serial.rx_end;
+					memcpy(&(Host_serial.rx_buffer[Host_serial.rx_end]), _curr_pkt, wrote_bytes);
+					Host_serial.rx_end = 0;
+				}
+				//writes remaining bytes
+				memcpy(&(Host_serial.rx_buffer[Host_serial.rx_end]), ((uint8_t*)_curr_pkt)+wrote_bytes, curr_pkt_size - wrote_bytes);
+				Host_serial.rx_end += (curr_pkt_size - wrote_bytes);
+				
+				//updates rx_size
+				err = sem_wait(&(Host_serial.rx_sem_control));
+				handle_semaphore_error(err, "[Host_Serial: _rxThreadFn] Error in sem_wait on rx_sem_control");
+
+				Host_serial.rx_size += curr_pkt_size;
+
+				err = sem_post(&(Host_serial.rx_sem_control));
+				handle_semaphore_error(err, "[Host_Serial: _rxThreadFn] Error in sem_post on rx_sem_control");
+
+				//wakes up main thread (if it was waiting data)
+				err = sem_post(&(Host_serial.rx_sem_data));
+				handle_semaphore_error(err, "[Host_Serial: _rxThreadFn] Error in sem_post on rx_sem_data");
+			}
+			SKIP:
+				//discards packet
+				memset(_curr_pkt, 0, PACKET_MAX_SIZE);
+				curr_pkt_size = 0;
+		}	else if( curr_pkt_size > sizeof(PacketHeader) && curr_pkt_size > curr_pkt->size ) {
+			printf("[Host_Serial: _rxThreadFn] Error curr_pkt_size %d > curr_pkt->size %d\n", curr_pkt_size, curr_pkt->size);
+			
+		}
 	}
 	return args_;
 }
@@ -169,8 +214,8 @@ int Host_Serial_receivePacket(PacketHeader* pkt) {
 		// sem_wait on rx_sem_data : waits for data to be received
 		err = sem_wait(&(Host_serial.rx_sem_data));
 		handle_semaphore_error(err, "[Host_Serial_receivePacket] Error in sem_wait on rx_sem_data");
-//TODO	} while( Host_serial.rx_size < PACKET_MIN_SIZE ); //and handle error
-	} while( Host_serial.rx_size < pkt->size );
+	} while( Host_serial.rx_size < PACKET_MIN_SIZE );
+	//} while( Host_serial.rx_size < pkt->size );
 	
 	// reads PacketHeader
 	PacketHeader pkt_head;
@@ -188,10 +233,10 @@ int Host_Serial_receivePacket(PacketHeader* pkt) {
 	//checks we are receiving a packet of the wanted type
 	if( pkt_head.type != pkt->type )
 		return SERIAL__REQUESTED_PACKET_ID_NOT_FOUND;
-
-	//printf("\t[Host_Serial_receivePacket pkt_type: %d] requested pkt_size: %d, found pkt_size: %d, rx_size: %d\n", pkt->type, pkt->size, pkt_head.size, Host_serial.rx_size);
+	
+	//checks for integrity of the packet
 	if( pkt_head.size > Host_serial.rx_size )
-		return SERIAL__PACKET_INCOMPLETE; //this is now impossible, see TODO
+		return SERIAL__PACKET_INCOMPLETE;
 	
 	int recvd_bytes = 0;
 	if ( Host_serial.rx_start + pkt_head.size >= SERIAL_BUFFER_SIZE ) {
@@ -214,6 +259,13 @@ int Host_Serial_receivePacket(PacketHeader* pkt) {
 	handle_semaphore_error(err, "[Host_Serial_receivePacket] Error in sem_post on rx_sem_control");
 	
 	
+	return SERIAL__SUCCESS;
+}
+
+int Host_Serial_registerPacketHandler(PacketType packet_type, PacketOpFunctionType callback) {
+	if( packet_type < 0 || packet_type > PACKET_MAX_ID)
+		return SERIAL__PACKET_ID_UNEXISTING;
+	Host_serial.packetOps_vector[packet_type] = callback;
 	return SERIAL__SUCCESS;
 }
 

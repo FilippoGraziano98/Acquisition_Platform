@@ -39,3 +39,10 @@ int serial_send(int fd, uint8_t* buf, uint8_t size);
  *      number of bytes received else.
  */
 int serial_receive(int fd, uint8_t* buf, uint8_t size);
+
+
+/*
+ * serial_reset
+ *		reads all unread bytes still on the bus
+ */
+void serial_reset(int fd);

@@ -18,6 +18,22 @@
 #include <stdio.h>
 #endif
 
+int Firmware_checkConnection(int cycles) {
+	EchoPacket echo_pkt;
+	PacketHeader* pkt = (PacketHeader*)&echo_pkt;
+	
+	int i=0;
+	while( i < cycles ) {
+		//controlla se sono arrivati pacchetti
+		if( UART_check_packet() ) {
+			UART_receive_packet(pkt);
+			PacketHandler_process(pkt);
+			i++;
+		} else {
+			_delay_ms(10);
+		}
+	}
+}
 
 int main(void){
 	UART_Init();
@@ -38,6 +54,8 @@ int main(void){
 	IMU_GyroscopeCalibration();
 	#endif
 	
+	Firmware_checkConnection(SYNCHRONIZATION_CYCLES);
+	
 	uint8_t buffer[PACKET_MAX_SIZE];
 	PacketHeader* pkt = (PacketHeader*)buffer;
 	
@@ -48,8 +66,8 @@ int main(void){
 		if( UART_check_packet() ) {
 			UART_receive_packet(pkt);
 			PacketHandler_process(pkt);
-		} else {
-			_delay_ms(10);
 		}
+		Encoder_sendOdometryToHost();
+		_delay_ms(1000);
 	}
 }
