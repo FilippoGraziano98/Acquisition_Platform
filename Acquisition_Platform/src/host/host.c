@@ -16,8 +16,12 @@
 static Host_t Global_Host;
 
 //callbacks for corresponding pkts
+static void Host_printSystemStatusPkt(PacketHeader* pkt);
 static void Host_saveEncoderPkt(PacketHeader* pkt);
 static void Host_saveOdometryPkt(PacketHeader* pkt);
+static void Host_saveAccelerometerPkt(PacketHeader* pkt);
+static void Host_saveGyroscopePkt(PacketHeader* pkt);
+static void Host_saveMagnetometerPkt(PacketHeader* pkt);
 
 
 int Host_init(const char* device) {
@@ -51,8 +55,12 @@ int Host_init(const char* device) {
 	Host_Serial_init(Global_Host.serial_fd);
 
 	//initialization of packetOps_vector
-	res = Host_Serial_registerPacketHandler(ENCODER_PACKET_ID, Host_saveEncoderPkt);
+	res = Host_Serial_registerPacketHandler(SYSTEM_STATUS_PACKET_ID, Host_printSystemStatusPkt);
+	res |= Host_Serial_registerPacketHandler(ENCODER_PACKET_ID, Host_saveEncoderPkt);
 	res |= Host_Serial_registerPacketHandler(ODOMETRY_PACKET_ID, Host_saveOdometryPkt);
+	res |= Host_Serial_registerPacketHandler(ACCELEROMETER_PACKET_ID, Host_saveAccelerometerPkt);
+	res |= Host_Serial_registerPacketHandler(GYROSCOPE_PACKET_ID, Host_saveGyroscopePkt);
+	res |= Host_Serial_registerPacketHandler(MAGNETOMETER_PACKET_ID, Host_saveMagnetometerPkt);
 	if ( res < 0 ) {
 		printf("[Host_init] Error in Host_Serial_registerPacketHandler\n");
 		return -1;
@@ -92,25 +100,60 @@ int Host_checkConnection(int cycles) {
 }
 
 
-
-static void Host_saveEncoderPkt(PacketHeader* pkt) {
-	if( pkt->type != ENCODER_PACKET_ID) {
-		printf("[Host_printEncoderPkt] Packet Handling CORRUPTED: pkt is not EncoderPacket\n");
+static void Host_printSystemStatusPkt(PacketHeader* pkt) {
+	if( pkt->type != SYSTEM_STATUS_PACKET_ID) {
+		printf("[Host_printSystemStatusPkt] Packet Handling CORRUPTED: pkt is not SystemStatusPacket\n");
 		return;
 	}
 	
-	EncoderPacket* enc_pkt = (EncoderPacket*)pkt;
-	memcpy(&(Global_Host.encoder_packet), enc_pkt, sizeof(EncoderPacket));
+	SystemStatusPacket* system_pkt = (SystemStatusPacket*)pkt;
+	printf("*****\n");
+	printf("time: %d secs, idle_cycles: %d, rx_count: %d, tx_count: %d\n", system_pkt->global_secs_count, system_pkt->idle_cycles, system_pkt->rx_count, system_pkt->tx_count);
+}
+
+static void Host_saveEncoderPkt(PacketHeader* pkt) {
+	if( pkt->type != ENCODER_PACKET_ID) {
+		printf("[Host_saveEncoderPkt] Packet Handling CORRUPTED: pkt is not EncoderPacket\n");
+		return;
+	}
+	
+	memcpy(&(Global_Host.encoder_packet), pkt, sizeof(EncoderPacket));
 }
 
 static void Host_saveOdometryPkt(PacketHeader* pkt) {
 	if( pkt->type != ODOMETRY_PACKET_ID) {
-		printf("[Host_printOdometryPkt] Packet Handling CORRUPTED: pkt is not OdometryPacket\n");
+		printf("[Host_saveOdometryPkt] Packet Handling CORRUPTED: pkt is not OdometryPacket\n");
 		return;
 	}
 	
-	OdometryPacket* odom_pkt = (OdometryPacket*)pkt;
-	memcpy(&(Global_Host.odom_packet), odom_pkt, sizeof(OdometryPacket));
+	memcpy(&(Global_Host.odom_packet), pkt, sizeof(OdometryPacket));
+}
+
+static void Host_saveAccelerometerPkt(PacketHeader* pkt) {
+	if( pkt->type != ACCELEROMETER_PACKET_ID) {
+		printf("[Host_saveAccelerometerPkt] Packet Handling CORRUPTED: pkt is not AccelerometerPacket\n");
+		return;
+	}
+	
+	memcpy(&(Global_Host.accelerometer_packet), pkt, sizeof(AccelerometerPacket));
+}
+
+static void Host_saveGyroscopePkt(PacketHeader* pkt) {
+	if( pkt->type != GYROSCOPE_PACKET_ID) {
+		printf("[Host_saveGyroscopePkt] Packet Handling CORRUPTED: pkt is not GyroscopePacket\n");
+		return;
+	}
+	
+	memcpy(&(Global_Host.gyroscope_packet), pkt, sizeof(GyroscopePacket));
+}
+
+static void Host_saveMagnetometerPkt(PacketHeader* pkt) {
+	if( pkt->type != MAGNETOMETER_PACKET_ID) {
+		printf("[Host_saveMagnetometerPkt] Packet Handling CORRUPTED: pkt is not MagnetometerPacket\n");
+		return;
+	}
+	
+	memcpy(&(Global_Host.magnetometer_packet), pkt, sizeof(MagnetometerPacket));
 }
 
 
@@ -144,7 +187,7 @@ int Host_getOdometryData() {
 	
 	return 0;
 }
-
+*/
 int Host_getIMUConfiguration() {
 	int res;
 	//asks the controller for update imu configuration
@@ -159,7 +202,7 @@ int Host_getIMUConfiguration() {
 	
 	return 0;
 }
-
+/*
 int Host_getAccelerometerData() {
 	int res;
 	//asks the controller for update accelerometer_data
@@ -244,9 +287,10 @@ void Host_printIMUConfiguration() {
 }
 
 void Host_printIMUData() {
-	printf("[Accelerometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.global_seq, Global_Host.accelerometer_packet.accel_x, Global_Host.accelerometer_packet.accel_y, Global_Host.accelerometer_packet.accel_z);
-	printf("[Gyroscope %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.global_seq, Global_Host.gyroscope_packet.gyro_x, Global_Host.gyroscope_packet.gyro_y, Global_Host.gyroscope_packet.gyro_z);
-	printf("[Magnetometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.global_seq, Global_Host.magnetometer_packet.magnet_x, Global_Host.magnetometer_packet.magnet_y, Global_Host.magnetometer_packet.magnet_z);
+	printf("Global Seq: %d\n", Global_Host.global_seq);
+	printf("[Accelerometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.accelerometer_packet.header.seq, Global_Host.accelerometer_packet.accel_x, Global_Host.accelerometer_packet.accel_y, Global_Host.accelerometer_packet.accel_z);
+	printf("[Gyroscope %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.gyroscope_packet.header.seq, Global_Host.gyroscope_packet.gyro_x, Global_Host.gyroscope_packet.gyro_y, Global_Host.gyroscope_packet.gyro_z);
+	printf("[Magnetometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.magnetometer_packet.header.seq, Global_Host.magnetometer_packet.magnet_x, Global_Host.magnetometer_packet.magnet_y, Global_Host.magnetometer_packet.magnet_z);
 	printf("\n");
 }
 

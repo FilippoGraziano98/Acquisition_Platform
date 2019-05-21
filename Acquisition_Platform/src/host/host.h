@@ -51,7 +51,7 @@ int Host_checkConnection(int cycles);
  */
 //int Host_getEncoderData(void);	//deprecated
 //int Host_getOdometryData(void);	//deprecated
-//int Host_getIMUConfiguration(void);
+int Host_getIMUConfiguration(void);
 //int Host_getAccelerometerData(void);
 //int Host_getGyroscopeData(void);
 //int Host_getMagnetometerData(void);

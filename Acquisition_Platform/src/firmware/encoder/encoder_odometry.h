@@ -1,6 +1,8 @@
 #pragma once
 #include "encoder.h"
 
+#include "../packets/uart_packets.h"
+
 #define M_PI 3.141592654
 
 #define WHEEL_RADIUS 0.0255	//meters

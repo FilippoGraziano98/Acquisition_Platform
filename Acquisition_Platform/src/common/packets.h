@@ -18,17 +18,19 @@
 #define MAX_SIZE(t1,t2) ((t1>t2) ? t1 : t2)
 
 #define PACKET_MIN_SIZE (MIN_SIZE(sizeof(EchoPacket),\
+													MAX_SIZE(sizeof(SystemStatusPacket),\
 													MIN_SIZE(sizeof(EncoderPacket),\
 													MAX_SIZE(sizeof(OdometryPacket),\
 													MIN_SIZE(sizeof(IMUConfigurationPacket),\
 													MIN_SIZE(sizeof(AccelerometerPacket),\
-													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket))))))))
+													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))))
 #define PACKET_MAX_SIZE (MAX_SIZE(sizeof(EchoPacket),\
+													MAX_SIZE(sizeof(SystemStatusPacket),\
 													MAX_SIZE(sizeof(EncoderPacket),\
 													MAX_SIZE(sizeof(OdometryPacket),\
 													MAX_SIZE(sizeof(IMUConfigurationPacket),\
 													MAX_SIZE(sizeof(AccelerometerPacket),\
-													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket))))))))
+													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))))
 
 #pragma pack(push, 1)
 
@@ -42,9 +44,18 @@ typedef struct {
 
 typedef struct {
   PacketHeader header;
+  uint32_t global_secs_count;	// secs since startup
+	uint32_t idle_cycles; // count how long we spend doing nofin
+	uint32_t rx_count;		// counts how many packets have been received
+	uint32_t tx_count;		// counts how many packets have been transmitted
+} SystemStatusPacket;
+#define SYSTEM_STATUS_PACKET_ID 1
+
+typedef struct {
+  PacketHeader header;
 	int32_t counters[NUM_ENCODERS];
 } EncoderPacket;
-#define ENCODER_PACKET_ID 1
+#define ENCODER_PACKET_ID 2
 
 typedef struct {
   PacketHeader header;
@@ -67,7 +78,7 @@ typedef struct {
 	float translational_velocity;
 	float rotational_velocity;
 } OdometryPacket;
-#define ODOMETRY_PACKET_ID 2
+#define ODOMETRY_PACKET_ID 3
 
 typedef struct {
   PacketHeader header;
@@ -75,7 +86,7 @@ typedef struct {
 	int16_t gyro_y_bias;
 	int16_t gyro_z_bias;
 } IMUConfigurationPacket;
-#define IMU_CONFIG_PACKET_ID 3
+#define IMU_CONFIG_PACKET_ID 4
 
 
 //NOTE: according to
@@ -91,7 +102,7 @@ typedef struct {
 	float accel_y;		// [ note: G-forces -> a single G-force for us here on planet Earth is equivalent to 9.8 m/s^2 ]
 	float accel_z;
 } AccelerometerPacket;
-#define ACCELEROMETER_PACKET_ID 4
+#define ACCELEROMETER_PACKET_ID 5
 
 typedef struct {
   PacketHeader header;
@@ -99,7 +110,7 @@ typedef struct {
 	float gyro_y;			// [ note: DPS, Degrees Per Second ]
 	float gyro_z;
 } GyroscopePacket;
-#define GYROSCOPE_PACKET_ID 5
+#define GYROSCOPE_PACKET_ID 6
 
 typedef struct {
   PacketHeader header;
@@ -107,6 +118,6 @@ typedef struct {
 	float magnet_y;
 	float magnet_z;
 } MagnetometerPacket;
-#define MAGNETOMETER_PACKET_ID 6
+#define MAGNETOMETER_PACKET_ID 7
 
 #pragma pack(pop)

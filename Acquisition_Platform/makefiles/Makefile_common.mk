@@ -1,6 +1,6 @@
 
-#SENSORS += -DIMU
-SENSORS += -DENCS
+SENSORS += -DUSE_IMU
+SENSORS += -DUSE_ENCS
 
 #DEBUG_OPTS += -DDEBUG_PRINTF		#use cutecom, no packet handling
 DEBUG_OPTS += -DDEBUG_ODOM

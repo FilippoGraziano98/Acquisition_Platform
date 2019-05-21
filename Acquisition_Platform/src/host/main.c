@@ -59,17 +59,17 @@ int main(int argc, char** argv) {
 		goto EXIT;
 	}
 	
-	#ifdef IMU
+	#ifdef USE_IMU
 	Host_getIMUConfiguration();
 	Host_printIMUConfiguration();
 	#endif
 	
-	#ifdef IMU
+	#ifdef USE_IMU
 	printf("IMU\n");
 	#else
 	printf("no IMU\n");
 	#endif
-	#ifdef ENCS
+	#ifdef USE_ENCS
 	printf("ENCS\n");
 	#else
 	printf("no ENCS\n");
@@ -77,15 +77,15 @@ int main(int argc, char** argv) {
 	
 	
 	while(1) {
-		#ifdef ENCS
+		#ifdef USE_ENCS
 		//Host_getOdometryData();
 		Host_printOdometryData();
 		#endif
 		
-		#ifdef IMU
-		Host_getAccelerometerData();
-		Host_getGyroscopeData();
-		Host_getMagnetometerData();
+		#ifdef USE_IMU
+		//Host_getAccelerometerData();
+		//Host_getGyroscopeData();
+		//Host_getMagnetometerData();
 		
 		Host_printIMUData();
 		#endif

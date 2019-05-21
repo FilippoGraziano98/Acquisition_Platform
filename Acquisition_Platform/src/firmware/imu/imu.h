@@ -1,5 +1,9 @@
 #pragma once
 
+
+#include "../packets/uart_packets.h"
+
+
 /* DEVICE ADDRESS */
 #define AD0 0x68
 #define AD1 0x69 //if a second imu on the same i2c bus
@@ -55,31 +59,36 @@ typedef struct IMU_t {
 	//sequence increased at each timer interrupt occured
 	uint16_t imu_time_seq;
 	
+	
+	IMUConfigurationPacket imu_config_values;
+	
 	/* ACCELEROMETER */
 	int16_t accel_raw_x;
 	int16_t accel_raw_y;
 	int16_t accel_raw_z;
 	uint8_t accel_raw_flag;	//flag indicating if data is valid or not
 	
-	float accel_x;
-	float accel_y;
-	float accel_z;
+//	float accel_x;
+//	float accel_y;
+//	float accel_z;
 	uint16_t accel_seq;	//seq increased when values updated
+	AccelerometerPacket accel_values;
 	
 	/* GYROSCOPE */
-	int16_t gyro_x_bias;	//calibration
-	int16_t gyro_y_bias;
-	int16_t gyro_z_bias;
+//	int16_t gyro_x_bias;	//calibration
+//	int16_t gyro_y_bias;
+//	int16_t gyro_z_bias;
 	
 	int16_t gyro_raw_x;		//16-bit values from regs
 	int16_t gyro_raw_y;
 	int16_t gyro_raw_z;
 	uint8_t gyro_raw_flag;
 	
-	float gyro_x;					//physical values
-	float gyro_y;
-	float gyro_z;
+//	float gyro_x;					//physical values
+//	float gyro_y;
+//	float gyro_z;
 	uint16_t gyro_seq;
+	GyroscopePacket gyro_values;
 	
 	/* MAGNETOMETER */
 	int16_t magnet_raw_x;
@@ -87,10 +96,11 @@ typedef struct IMU_t {
 	int16_t magnet_raw_z;
 	uint8_t magnet_raw_flag;
 
-	float magnet_x;
-	float magnet_y;
-	float magnet_z;
+//	float magnet_x;
+//	float magnet_y;
+//	float magnet_z;
 	uint16_t magnet_seq;
+	MagnetometerPacket magnet_values;
 	
 	/* TERMOMETER */
 	int16_t temperature_raw;
@@ -104,10 +114,12 @@ typedef struct IMU_t {
  * bandwidth : highest frequency signal that can be sampled without aliasing by the specified output_data_rate,
  * Per the Nyquist sampling criterion, bandwidth is half the output_data_rate
  *
- * in IMURaw_Init, we set Gyroscope and Accelerometer Bandwidths to 5Hz
- *	so we set output_data_rate to 10Hz
+ * in IMURaw_Init, we set
+ *		Gyroscope Bandwidth to 250 Hz
+ *		Accelerometer Bandwidth to 218.1 Hz
+ *	so we set output_data_rate to 500 Hz = max(2*250,2*218)
  */
-#define IMU_UPDATE_RATE 10 //Hz
+#define IMU_UPDATE_RATE 500 //Hz
 void IMU_Init(void);
 
 void IMU_GyroscopeCalibration(void);
@@ -123,3 +135,10 @@ uint16_t IMU_getAccelerometer(float* x, float* y, float* z);
 uint16_t IMU_getGyroscope(float* x, float* y, float* z);
 uint16_t IMU_getMagnetometer(float* x, float* y, float* z);
 //uint16_t IMU_getTermometer(int16_t* temp);
+
+/*
+ * IMU_sendIMUDataToHost
+ *	sends Accelerometer, Gyroscope, Magnetometer packets
+ *	@returns: >0 if ok, 0 if error
+ */
+uint8_t IMU_sendIMUDataToHost(void);

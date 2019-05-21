@@ -3,8 +3,6 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 
-#include "../packets/uart_packets.h"
-
 #include "encoder_odometry.h"
 
 
