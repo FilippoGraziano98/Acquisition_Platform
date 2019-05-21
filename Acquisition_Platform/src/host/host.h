@@ -4,6 +4,14 @@
 
 #include "../common/packets.h"
 
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+
 typedef struct Host_t {
 	// file descriptor of the serial port
 	int serial_fd;
@@ -41,13 +49,18 @@ int Host_checkConnection(int cycles);
  *		( not waiting for the answer )
  *  	asking the controller for updated data
  */
-int Host_getEncoderData(void);	//deprecated
-int Host_getOdometryData(void);	//deprecated
-int Host_getIMUConfiguration(void);
-int Host_getAccelerometerData(void);
-int Host_getGyroscopeData(void);
-int Host_getMagnetometerData(void);
+//int Host_getEncoderData(void);	//deprecated
+//int Host_getOdometryData(void);	//deprecated
+//int Host_getIMUConfiguration(void);
+//int Host_getAccelerometerData(void);
+//int Host_getGyroscopeData(void);
+//int Host_getMagnetometerData(void);
 
+/*
+ * Host_get<...>Data :
+ *	fils the packet taken as parameter with correct info
+ */
+void Host_getOdometryData(OdometryPacket* odom);
 
 /*
  * Host_print<...>Data :
@@ -66,3 +79,9 @@ void Host_printIMUData(void);
  *			on error, -1 is returned, and errno is set by close
  */
 int Host_destroy(void);
+
+
+
+#ifdef __cplusplus
+}
+#endif

@@ -17,6 +17,14 @@
 
 #define SERIAL__SUCCESS 0
 
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+
 //TODO not ret val
 typedef void(*PacketOpFunctionType)(PacketHeader* pkt);
 
@@ -90,3 +98,9 @@ int Host_Serial_receivePacket(PacketHeader* pkt);
  * 	kills the other threads
  */
 void Host_Serial_destroy(void);
+
+
+
+#ifdef __cplusplus
+}
+#endif

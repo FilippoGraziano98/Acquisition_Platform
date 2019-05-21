@@ -1,0 +1,9 @@
+<launch>
+	<node name="rviz" pkg="rviz" type="rviz" args="-d /home/filippo/.rviz/acq_pl.rviz"/>
+	
+	<node name="odom_to_world_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 1 /odom /world 100" />
+	
+	<!-- Acquisition Platform Node -->
+	<node name="acquisition_platform_node" pkg="Acquisition_Platform_ros" type="acq_pl_node">
+  </node>
+</launch>

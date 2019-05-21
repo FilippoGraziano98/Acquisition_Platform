@@ -114,7 +114,7 @@ static void Host_saveOdometryPkt(PacketHeader* pkt) {
 }
 
 
-
+/** DEPRECATED
 int Host_getEncoderData() {
 	int res;
 	//asks the controller for update imu configuration
@@ -133,9 +133,9 @@ int Host_getEncoderData() {
 int Host_getOdometryData() {
 	int res;
 	//asks the controller for update imu configuration
-/*	res = Host_Serial_sendPacket((PacketHeader*)&(Global_Host.odom_packet));*/
-/*	if( res != SERIAL__SUCCESS)*/
-/*		printf("[Host_getOdometryData] Host_Serial_sendPacket error_code : %d\n", res);*/
+	res = Host_Serial_sendPacket((PacketHeader*)&(Global_Host.odom_packet));
+	if( res != SERIAL__SUCCESS)
+		printf("[Host_getOdometryData] Host_Serial_sendPacket error_code : %d\n", res);
 	
 	//saves it in Global_Host.odom_packet
 	res = Host_Serial_receivePacket((PacketHeader*)&(Global_Host.odom_packet));
@@ -209,6 +209,12 @@ int Host_getMagnetometerData() {
 	Global_Host.global_seq = (Global_Host.global_seq > Global_Host.magnetometer_packet.header.seq) ? Global_Host.global_seq : Global_Host.magnetometer_packet.header.seq;
 	
 	return 0;
+}
+*/
+
+
+void Host_getOdometryData(OdometryPacket* odom) {
+	memcpy(odom, &(Global_Host.odom_packet), sizeof(OdometryPacket));
 }
 
 

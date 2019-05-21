@@ -1,5 +1,13 @@
 #pragma once
 
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+
 // returns the descriptor of a serial port
 int serial_open(const char* name);
 
@@ -46,3 +54,9 @@ int serial_receive(int fd, uint8_t* buf, uint8_t size);
  *		reads all unread bytes still on the bus
  */
 void serial_reset(int fd);
+
+
+
+#ifdef __cplusplus
+}
+#endif

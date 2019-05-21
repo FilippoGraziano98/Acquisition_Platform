@@ -7,7 +7,7 @@ README.txt
 *_old.c
 *_old.h
 _*
-host_build/*
-!host_build/Makefile
-firmware_build/*
-!firmware_build/Makefile
+Acquisition_Platform/host_build/*
+!Acquisition_Platform/host_build/Makefile
+Acquisition_Platform/firmware_build/*
+!Acquisition_Platform/firmware_build/Makefile
