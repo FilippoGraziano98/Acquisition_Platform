@@ -22,6 +22,7 @@ static void Host_saveOdometryPkt(PacketHeader* pkt);
 static void Host_saveAccelerometerPkt(PacketHeader* pkt);
 static void Host_saveGyroscopePkt(PacketHeader* pkt);
 static void Host_saveMagnetometerPkt(PacketHeader* pkt);
+static void Host_saveIMUOdometryPkt(PacketHeader* pkt);
 
 
 int Host_init(const char* device) {
@@ -50,6 +51,7 @@ int Host_init(const char* device) {
 	INIT_PACKET(Global_Host.accelerometer_packet, ACCELEROMETER_PACKET_ID);
 	INIT_PACKET(Global_Host.gyroscope_packet, GYROSCOPE_PACKET_ID);
 	INIT_PACKET(Global_Host.magnetometer_packet, MAGNETOMETER_PACKET_ID);
+	INIT_PACKET(Global_Host.imu_odom_packet, IMU_ODOMETRY_PACKET_ID);
 	
 	//initialize Host_serial (packets_ interface)
 	Host_Serial_init(Global_Host.serial_fd);
@@ -61,6 +63,7 @@ int Host_init(const char* device) {
 	res |= Host_Serial_registerPacketHandler(ACCELEROMETER_PACKET_ID, Host_saveAccelerometerPkt);
 	res |= Host_Serial_registerPacketHandler(GYROSCOPE_PACKET_ID, Host_saveGyroscopePkt);
 	res |= Host_Serial_registerPacketHandler(MAGNETOMETER_PACKET_ID, Host_saveMagnetometerPkt);
+	res |= Host_Serial_registerPacketHandler(IMU_ODOMETRY_PACKET_ID, Host_saveIMUOdometryPkt);
 	if ( res < 0 ) {
 		printf("[Host_init] Error in Host_Serial_registerPacketHandler\n");
 		return -1;
@@ -156,6 +159,15 @@ static void Host_saveMagnetometerPkt(PacketHeader* pkt) {
 	memcpy(&(Global_Host.magnetometer_packet), pkt, sizeof(MagnetometerPacket));
 }
 
+
+static void Host_saveIMUOdometryPkt(PacketHeader* pkt) {
+	if( pkt->type != IMU_ODOMETRY_PACKET_ID) {
+		printf("[Host_saveIMUOdometryPkt] Packet Handling CORRUPTED: pkt is not IMUOdometryPacket\n");
+		return;
+	}
+	
+	memcpy(&(Global_Host.imu_odom_packet), pkt, sizeof(IMUOdometryPacket));
+}
 
 /** DEPRECATED
 int Host_getEncoderData() {
@@ -260,6 +272,11 @@ void Host_getOdometryData(OdometryPacket* odom) {
 	memcpy(odom, &(Global_Host.odom_packet), sizeof(OdometryPacket));
 }
 
+void Host_getIMUOdometryData(IMUOdometryPacket* imu_odom) {
+	memcpy(imu_odom, &(Global_Host.imu_odom_packet), sizeof(IMUOdometryPacket));
+}
+
+
 
 void Host_printEncoderData() {
 	printf("[EncoderLeft] counter: %d\n", Global_Host.encoder_packet.counters[0]);
@@ -284,6 +301,8 @@ void Host_printIMUConfiguration() {
 	printf("=== IMU CONFIGURATION ===\n");
 	printf("Gyroscope [seq: %d]:\n", Global_Host.imu_config_packet.header.seq);
 	printf("\tx-axis bias: %d\n\ty-axis bias: %d\n\tz-axis bias: %d\n", Global_Host.imu_config_packet.gyro_x_bias, Global_Host.imu_config_packet.gyro_y_bias, Global_Host.imu_config_packet.gyro_z_bias);
+	printf("Accelerometer [seq: %d]:\n", Global_Host.imu_config_packet.header.seq);
+	printf("\tx-axis bias: %d\n\ty-axis bias: %d\n\tz-axis bias: %d\n", Global_Host.imu_config_packet.accel_x_bias, Global_Host.imu_config_packet.accel_y_bias, Global_Host.imu_config_packet.accel_z_bias);
 }
 
 void Host_printIMUData() {
@@ -291,6 +310,12 @@ void Host_printIMUData() {
 	printf("[Accelerometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.accelerometer_packet.header.seq, Global_Host.accelerometer_packet.accel_x, Global_Host.accelerometer_packet.accel_y, Global_Host.accelerometer_packet.accel_z);
 	printf("[Gyroscope %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.gyroscope_packet.header.seq, Global_Host.gyroscope_packet.gyro_x, Global_Host.gyroscope_packet.gyro_y, Global_Host.gyroscope_packet.gyro_z);
 	printf("[Magnetometer %d] x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.magnetometer_packet.header.seq, Global_Host.magnetometer_packet.magnet_x, Global_Host.magnetometer_packet.magnet_y, Global_Host.magnetometer_packet.magnet_z);
+	printf("\n");
+}
+
+void Host_printIMUOdometryData() {
+	printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.imu_yaw, Global_Host.imu_odom_packet.imu_pitch, Global_Host.imu_odom_packet.imu_roll);
+	printf("%d) rotational velocities: z-axis: %f, y-axis: %f, x-axis: %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.rotational_velocity_z_axis, Global_Host.imu_odom_packet.rotational_velocity_y_axis, Global_Host.imu_odom_packet.rotational_velocity_x_axis);
 	printf("\n");
 }
 

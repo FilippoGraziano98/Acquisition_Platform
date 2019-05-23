@@ -29,6 +29,8 @@ typedef struct Host_t {
   AccelerometerPacket accelerometer_packet;
   GyroscopePacket gyroscope_packet;
   MagnetometerPacket magnetometer_packet;
+  
+  IMUOdometryPacket imu_odom_packet;
 } Host_t;
 
 /*
@@ -61,6 +63,7 @@ int Host_getIMUConfiguration(void);
  *	fils the packet taken as parameter with correct info
  */
 void Host_getOdometryData(OdometryPacket* odom);
+void Host_getIMUOdometryData(IMUOdometryPacket* odom);
 
 /*
  * Host_print<...>Data :
@@ -70,6 +73,7 @@ void Host_printEncoderData(void);
 void Host_printOdometryData(void);
 void Host_printIMUConfiguration(void);
 void Host_printIMUData(void);
+void Host_printIMUOdometryData(void);
 
 /*
  * Host_destroy :

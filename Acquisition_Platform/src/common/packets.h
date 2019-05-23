@@ -23,14 +23,16 @@
 													MAX_SIZE(sizeof(OdometryPacket),\
 													MIN_SIZE(sizeof(IMUConfigurationPacket),\
 													MIN_SIZE(sizeof(AccelerometerPacket),\
-													MIN_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))))
+													MIN_SIZE(sizeof(GyroscopePacket),\
+													MIN_SIZE(sizeof(MagnetometerPacket),sizeof(IMUOdometryPacket))))))))))
 #define PACKET_MAX_SIZE (MAX_SIZE(sizeof(EchoPacket),\
 													MAX_SIZE(sizeof(SystemStatusPacket),\
 													MAX_SIZE(sizeof(EncoderPacket),\
 													MAX_SIZE(sizeof(OdometryPacket),\
 													MAX_SIZE(sizeof(IMUConfigurationPacket),\
 													MAX_SIZE(sizeof(AccelerometerPacket),\
-													MAX_SIZE(sizeof(GyroscopePacket),sizeof(MagnetometerPacket)))))))))
+													MAX_SIZE(sizeof(GyroscopePacket),\
+													MAX_SIZE(sizeof(MagnetometerPacket),sizeof(IMUOdometryPacket))))))))))
 
 #pragma pack(push, 1)
 
@@ -85,6 +87,10 @@ typedef struct {
 	int16_t gyro_x_bias;		//gyroscope
 	int16_t gyro_y_bias;
 	int16_t gyro_z_bias;
+	
+	int16_t accel_x_bias;		//accelerometer
+	int16_t accel_y_bias;
+	int16_t accel_z_bias;
 } IMUConfigurationPacket;
 #define IMU_CONFIG_PACKET_ID 4
 
@@ -106,9 +112,9 @@ typedef struct {
 
 typedef struct {
   PacketHeader header;
-	float gyro_x;		//data measured in DPS
-	float gyro_y;			// [ note: DPS, Degrees Per Second ]
-	float gyro_z;
+	float gyro_x;		//measure angular velocity (speed of rotation)
+	float gyro_y;		//data measured in DPS
+	float gyro_z;			// [ note: DPS, Degrees Per Second ]
 } GyroscopePacket;
 #define GYROSCOPE_PACKET_ID 6
 
@@ -119,5 +125,22 @@ typedef struct {
 	float magnet_z;
 } MagnetometerPacket;
 #define MAGNETOMETER_PACKET_ID 7
+
+typedef struct {
+  PacketHeader header;
+	
+	float odom_x;
+	float odom_y;
+	
+	float imu_yaw;	//rotation on z-axis
+	float imu_pitch;//rotation on y-axis
+	float imu_roll;	//rotation on x-axis
+	
+	float translational_velocity;
+	float rotational_velocity_z_axis;
+	float rotational_velocity_y_axis;
+	float rotational_velocity_x_axis;
+} IMUOdometryPacket;
+#define IMU_ODOMETRY_PACKET_ID 8
 
 #pragma pack(pop)

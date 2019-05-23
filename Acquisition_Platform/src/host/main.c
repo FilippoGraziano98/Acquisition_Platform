@@ -88,6 +88,7 @@ int main(int argc, char** argv) {
 		//Host_getMagnetometerData();
 		
 		Host_printIMUData();
+		Host_printIMUOdometryData();
 		#endif
 		
 		sleep(1);

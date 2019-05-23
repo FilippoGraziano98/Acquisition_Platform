@@ -36,7 +36,7 @@ void Encoder_OdometryUpdate(void);
 
 
 /*
- * IMU_get<Sensor>
+ * Encoder_get<Sensor>
  *	@params: ptr to variables where to store values
  *	@returns: seq value of the sensor
  */

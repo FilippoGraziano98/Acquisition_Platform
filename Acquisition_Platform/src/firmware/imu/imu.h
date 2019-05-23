@@ -122,18 +122,18 @@ typedef struct IMU_t {
 #define IMU_UPDATE_RATE 500 //Hz
 void IMU_Init(void);
 
-void IMU_GyroscopeCalibration(void);
+void IMU_Calibration(void);
 
-void IMU_getCalibrationData(int16_t* gyro_x_bias, int16_t* gyro_y_bias, int16_t* gyro_z_bias);
+void IMU_getCalibrationData(IMUConfigurationPacket* config_pkt);
 
 /*
  * IMU_get<Sensor>
  *	@params: ptr to x, y, z variables where to store values
  *	@returns: seq value of the sensor
  */
-uint16_t IMU_getAccelerometer(float* x, float* y, float* z);
-uint16_t IMU_getGyroscope(float* x, float* y, float* z);
-uint16_t IMU_getMagnetometer(float* x, float* y, float* z);
+uint16_t IMU_getAccelerometer(AccelerometerPacket* accel_pkt);
+uint16_t IMU_getGyroscope(GyroscopePacket* gyro_pkt);
+uint16_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt);
 //uint16_t IMU_getTermometer(int16_t* temp);
 
 /*

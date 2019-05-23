@@ -11,6 +11,7 @@
 #include "../avr_common/i2c_communication.h"
 
 #include "imu.h"
+#include "imu_odometry.h"
 
 static IMU_t IMU;
 
@@ -83,8 +84,9 @@ static void IMU_ConfigRegs(void) {
  *	NOTE: these functions are called by the timer ISR
  *			and they are defined later in this file
  */
-static void IMU_AccelerometerRaw(void);
-static void IMU_GyroscopeRaw(void);
+static void IMU_AccelerometerRaw(void);//deprecated
+static void IMU_GyroscopeRaw(void);//deprecated
+static void IMU_AccelGyroRaw(void);
 static void IMU_MagnetometerRaw(void);
 static void IMU_TermometerRaw(void);
 
@@ -105,9 +107,10 @@ static void IMU_TermometerRaw(void);
  *		[ this ISR has a mean duration of 10 ms (empiric measure) ]
  *	and we don't want to delay this much the communication with the host (uart)
  */
-ISR(TIMER1_COMPA_vect) {
-	IMU_AccelerometerRaw();
-	IMU_GyroscopeRaw();
+ISR(TIMER3_COMPA_vect) {
+	//IMU_AccelerometerRaw();
+	//IMU_GyroscopeRaw();
+	IMU_AccelGyroRaw();
 	IMU_MagnetometerRaw();
 	//IMU_TermometerRaw();
 
@@ -118,8 +121,8 @@ static void IMU_setPeriodicDataUpdate(uint16_t frequency) {
   uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
   
   // configure timer1, prescaler : 256, CTC (Clear Timer on Compare match)
-  TCCR1A = 0;
-  TCCR1B = (1 << WGM12) | (1 << CS12); 
+  TCCR3A = 0;
+  TCCR3B = (1 << WGM12) | (1 << CS12); 
   
   /*
 	 * cpu frequency 16MHz = 16.000.000 Hz
@@ -127,13 +130,13 @@ static void IMU_setPeriodicDataUpdate(uint16_t frequency) {
 	 *	-->> TCNT1 increased at a frequency of 16.000.000/256 Hz = 62500 Hz
 	 *	so 1 ms will correspond do 62.5 counts
 	 */
-  OCR1A = (uint16_t)(62.5 * period_ms);
+  OCR3A = (uint16_t)(62.5 * period_ms);
 
 	// timer-interrupt enabling will be executed atomically (no other interrupts)
 		// and ATOMIC_FORCEON ensures Global Interrupt Status flag bit in SREG set afetrwards
 		// (sei() not needed)
   ATOMIC_BLOCK(ATOMIC_FORCEON) {
-  	TIMSK1 |= (1 << OCIE1A);  // enable the timer interrupt (istruz. elementare, no interrupt)
+  	TIMSK3 |= (1 << OCIE3A);  // enable the timer interrupt (istruz. elementare, no interrupt)
   }
 }
 
@@ -172,9 +175,9 @@ static void IMU_Accelerometer_Callback(uint8_t* buffer, uint8_t buflen) {
 
 	float accel_sensitivity = (uint16_t)(1<<15) / (float)2;
 		
-	IMU.accel_values.accel_x = (float)(IMU.accel_raw_x) / accel_sensitivity;
-	IMU.accel_values.accel_y = (float)(IMU.accel_raw_y) / accel_sensitivity;
-	IMU.accel_values.accel_z = (float)(IMU.accel_raw_z) / accel_sensitivity;
+	IMU.accel_values.accel_x = (float)(IMU.accel_raw_x - IMU.imu_config_values.accel_x_bias) / accel_sensitivity;
+	IMU.accel_values.accel_y = (float)(IMU.accel_raw_y - IMU.imu_config_values.accel_y_bias) / accel_sensitivity;
+	IMU.accel_values.accel_z = (float)(IMU.accel_raw_z - IMU.imu_config_values.accel_z_bias) / accel_sensitivity;
 
 	IMU.accel_seq++;
 }
@@ -224,6 +227,57 @@ static void IMU_GyroscopeRaw(void) {
 	I2C_ReadNRegisters(ACCELGYRO_DEVICE, GYRO_XOUT_H, 6, IMU_Gyroscope_Callback);
 }
 
+
+static void IMU_AccelGyro_Callback(uint8_t* buffer, uint8_t buflen) {
+	if(buflen != 14)	//this is the callback of a read of 14 bytes
+		return;
+	
+	IMU.accel_raw_x = ( ((int16_t) buffer[0]) << 8 ) + buffer[1];
+	IMU.accel_raw_y = ( ((int16_t) buffer[2]) << 8 ) + buffer[3];
+	IMU.accel_raw_z = ( ((int16_t) buffer[4]) << 8 ) + buffer[5];
+
+	IMU.accel_raw_flag = VALID;
+
+	//GYRO_XOUT_H is the 8-th byte in buffer
+	uint8_t gyro_offest_buf = 8;
+	IMU.gyro_raw_x = ( ((int16_t) buffer[gyro_offest_buf+0]) << 8 ) + buffer[gyro_offest_buf+1];
+	IMU.gyro_raw_y = ( ((int16_t) buffer[gyro_offest_buf+2]) << 8 ) + buffer[gyro_offest_buf+3];
+	IMU.gyro_raw_z = ( ((int16_t) buffer[gyro_offest_buf+4]) << 8 ) + buffer[gyro_offest_buf+5];
+
+	IMU.gyro_raw_flag = VALID;
+
+	#ifdef DEBUG_PRINTF_
+	printf("IMU Accel Callback, raw x: %d, raw y: %d, raw z: %d\n", IMU.accel_raw_x, IMU.accel_raw_y, IMU.accel_raw_z);
+	printf("IMU Gyro Callback, raw x: %d, raw y: %d, raw z: %d\n\n", IMU.gyro_raw_x, IMU.gyro_raw_y, IMU.gyro_raw_z);
+	#endif
+	
+	//accelerometer
+	float accel_sensitivity = (uint16_t)(1<<15) / (float)2;
+		
+	IMU.accel_values.accel_x = (float)(IMU.accel_raw_x - IMU.imu_config_values.accel_x_bias) / accel_sensitivity;
+	IMU.accel_values.accel_y = (float)(IMU.accel_raw_y - IMU.imu_config_values.accel_y_bias) / accel_sensitivity;
+	IMU.accel_values.accel_z = (float)(IMU.accel_raw_z - IMU.imu_config_values.accel_z_bias) / accel_sensitivity;
+
+	IMU.accel_seq++;
+	
+	//gyroscope
+	float gyro_sensitivity = (uint16_t)(1<<15) / (float)250;
+	
+	IMU.gyro_values.gyro_x = (float)(IMU.gyro_raw_x - IMU.imu_config_values.gyro_x_bias) / gyro_sensitivity;
+	IMU.gyro_values.gyro_y = (float)(IMU.gyro_raw_y - IMU.imu_config_values.gyro_y_bias) / gyro_sensitivity;
+	IMU.gyro_values.gyro_z = (float)(IMU.gyro_raw_z - IMU.imu_config_values.gyro_z_bias) / gyro_sensitivity;
+
+	IMU.gyro_seq++;
+	
+	IMU_OdometryUpdate(&(IMU.accel_values), &(IMU.gyro_values));
+}
+static void IMU_AccelGyroRaw(void) {
+	IMU.accel_raw_flag = INVALID;
+	IMU.gyro_raw_flag = INVALID;
+	
+	//reading registers from ACCEL_XOUT_H to GYRO_ZOUT_L
+	I2C_ReadNRegisters(ACCELGYRO_DEVICE, ACCEL_XOUT_H, 14, IMU_AccelGyro_Callback);
+}
 
 /*
  * Magnetometer Sensor [ from datasheet ]
@@ -299,7 +353,7 @@ In order to correct for these errors, the gyro must be calibrated.
 
 This is usually done by keeping the gyro still and zeroing all of the readings in your code.
 */
-void IMU_GyroscopeCalibration(void) {
+static void IMU_GyroscopeCalibration(void) {
 	uint32_t gyro_x_sum=0, gyro_y_sum=0, gyro_z_sum=0;
 	
 	#ifdef DEBUG_PRINTF_
@@ -331,43 +385,78 @@ void IMU_GyroscopeCalibration(void) {
 	#endif
 }
 
-void IMU_getCalibrationData(int16_t* gyro_x_bias, int16_t* gyro_y_bias, int16_t* gyro_z_bias) {
-	*gyro_x_bias = IMU.imu_config_values.gyro_x_bias;
-	*gyro_y_bias = IMU.imu_config_values.gyro_y_bias;
-	*gyro_z_bias = IMU.imu_config_values.gyro_z_bias;
+static void IMU_AccelerometerCalibration(void) {
+	uint32_t accel_x_sum=0, accel_y_sum=0, accel_z_sum=0;
+	
+	#ifdef DEBUG_PRINTF_
+	printf("IMU_AccelerometerCalibration\n");
+	#endif
+	
+	uint8_t i;
+	for(i=0; i<CALIBRATION_SAMPLES; i++) {
+		//waits for gyroscope data to be valid
+		while(IMU.accel_raw_flag == INVALID)
+			_delay_ms(1);
+		
+		
+		accel_x_sum += IMU.accel_raw_x;
+		accel_y_sum += IMU.accel_raw_y;
+		accel_z_sum += IMU.accel_raw_z;
+		
+		#ifdef DEBUG_PRINTF_
+		printf("    %d) x: %d [sum: %ld], y: %d [sum: %ld], z: %d [sum: %ld]\n", i, IMU.accel_raw_x, accel_x_sum, IMU.accel_raw_y, accel_y_sum, IMU.accel_raw_z, accel_z_sum);
+		#endif
+	}
+	
+	IMU.imu_config_values.accel_x_bias = accel_x_sum >> CALIBRATION_SAMPLES_LOG;
+	IMU.imu_config_values.accel_y_bias = accel_y_sum >> CALIBRATION_SAMPLES_LOG;
+	IMU.imu_config_values.accel_z_bias = accel_z_sum >> CALIBRATION_SAMPLES_LOG;
+	
+	#ifdef DEBUG_PRINTF_
+	printf("  x: %d, y: %d, z: %d\n", IMU.accel_x_bias, IMU.accel_y_bias, IMU.accel_z_bias);
+	#endif
 }
 
-uint16_t IMU_getAccelerometer(float* x, float* y, float* z) {
-	*x = IMU.accel_values.accel_x;
-	*y = IMU.accel_values.accel_y;
-	*z = IMU.accel_values.accel_z;
+void IMU_Calibration(void) {
+	IMU_GyroscopeCalibration();
+	IMU_AccelerometerCalibration();
+}
+
+void IMU_getCalibrationData(IMUConfigurationPacket* config_pkt) {
+	memcpy((void*)config_pkt+sizeof(PacketHeader), (void*)&(IMU.imu_config_values)+sizeof(PacketHeader), sizeof(IMUConfigurationPacket)-sizeof(PacketHeader));
+}
+
+uint16_t IMU_getAccelerometer(AccelerometerPacket* accel_pkt) {
+	memcpy((void*)accel_pkt+sizeof(PacketHeader), (void*)&(IMU.accel_values)+sizeof(PacketHeader), sizeof(AccelerometerPacket)-sizeof(PacketHeader));
 	return IMU.accel_seq;
 }
-uint16_t IMU_getGyroscope(float* x, float* y, float* z) {
-	*x = IMU.gyro_values.gyro_x;
-	*y = IMU.gyro_values.gyro_y;
-	*z = IMU.gyro_values.gyro_z;
+uint16_t IMU_getGyroscope(GyroscopePacket* gyro_pkt) {
+	memcpy((void*)gyro_pkt+sizeof(PacketHeader), (void*)&(IMU.gyro_values)+sizeof(PacketHeader), sizeof(GyroscopePacket)-sizeof(PacketHeader));
 	return IMU.gyro_seq;
 }
-uint16_t IMU_getMagnetometer(float* x, float* y, float* z) {
-	*x = IMU.magnet_values.magnet_x;
-	*y = IMU.magnet_values.magnet_y;
-	*z = IMU.magnet_values.magnet_z;
+uint16_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt) {
+	memcpy((void*)magnet_pkt+sizeof(PacketHeader), (void*)&(IMU.magnet_values)+sizeof(PacketHeader), sizeof(MagnetometerPacket)-sizeof(PacketHeader));
 	return IMU.magnet_seq;
 }
 
 
 uint8_t IMU_sendIMUDataToHost(void) {
-	int res = 1;
+	uint8_t res, ret = 0;
 	
 	IMU.accel_values.header.seq = IMU.accel_seq;
-	res &= UART_send_packet((PacketHeader*)&(IMU.accel_values));
+	res = UART_send_packet((PacketHeader*)&(IMU.accel_values));
+	if (res > 0)
+		ret++;
 	
 	IMU.gyro_values.header.seq = IMU.gyro_seq;
-	res &= UART_send_packet((PacketHeader*)&(IMU.gyro_values));
+	res = UART_send_packet((PacketHeader*)&(IMU.gyro_values));
+	if (res > 0)
+		ret++;
 	
 	IMU.magnet_values.header.seq = IMU.magnet_seq;
-	res &= UART_send_packet((PacketHeader*)&(IMU.magnet_values));
+	res = UART_send_packet((PacketHeader*)&(IMU.magnet_values));
+	if (res > 0)
+		ret++;
 	
-	return res;
+	return ret;
 }

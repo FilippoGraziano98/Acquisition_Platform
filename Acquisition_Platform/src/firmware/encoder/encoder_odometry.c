@@ -25,7 +25,7 @@ static void computeThetaTerms(float* sin_theta_over_theta, float* one_minus_cos_
 	}
 }
 
-ISR(TIMER3_COMPA_vect) {
+ISR(TIMER1_COMPA_vect) {
 	Encoder_OdometryUpdate();
 
 	Encoder_OdometryController.enc_time_seq++;
@@ -36,8 +36,8 @@ static void Encoder_setPeriodicOdometryUpdate(uint16_t frequency) {
   uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
   
   // configure timer1, prescaler : 256, CTC (Clear Timer on Compare match)
-  TCCR3A = 0;
-  TCCR3B = (1 << WGM12) | (1 << CS12); 
+  TCCR1A = 0;
+  TCCR1B = (1 << WGM12) | (1 << CS12); 
   
   /*
 	 * cpu frequency 16MHz = 16.000.000 Hz
@@ -45,13 +45,13 @@ static void Encoder_setPeriodicOdometryUpdate(uint16_t frequency) {
 	 *	-->> TCNT1 increased at a frequency of 16.000.000/256 Hz = 62500 Hz
 	 *	so 1 ms will correspond do 62.5 counts
 	 */
-  OCR3A = (uint16_t)(62.5 * period_ms);
+  OCR1A = (uint16_t)(62.5 * period_ms);
 
 	// timer-interrupt enabling will be executed atomically (no other interrupts)
 		// and ATOMIC_FORCEON ensures Global Interrupt Status flag bit in SREG set afetrwards
 		// (sei() not needed)
   ATOMIC_BLOCK(ATOMIC_FORCEON) {
-  	TIMSK3 |= (1 << OCIE3A);  // enable the timer interrupt (istruz. elementare, no interrupt)
+  	TIMSK1 |= (1 << OCIE1A);  // enable the timer interrupt (istruz. elementare, no interrupt)
   }
 }
 
@@ -175,6 +175,11 @@ uint16_t Encoder_getOdometry(float* odom_x, float* odom_y, float* odom_theta, fl
 
 
 uint8_t Encoder_sendOdometryToHost(void) {
+	uint8_t res, ret = 0;
 	Encoder_OdometryController.odometry_status.header.seq = Encoder_OdometryController.enc_time_seq;
-	return UART_send_packet((PacketHeader*)&(Encoder_OdometryController.odometry_status));
+	res = UART_send_packet((PacketHeader*)&(Encoder_OdometryController.odometry_status));
+	if(res > 0)
+		ret ++;
+	
+	return ret;
 }

@@ -10,6 +10,7 @@
 #include "encoder/encoder.h"
 #include "encoder/encoder_odometry.h"
 #include "imu/imu.h"
+#include "imu/imu_odometry.h"
 #include "packets/uart_packets.h"
 #include "packets/packet_handler.h"
 
@@ -43,10 +44,21 @@ void Firmware_checkConnection(int cycles) {
 }
 
 
-ISR(TIMER4_COMPA_vect) {
+ISR(TIMER5_COMPA_vect) {
 	UART_send_packet((PacketHeader*)&(system_status));
-	Encoder_sendOdometryToHost();
-	IMU_sendIMUDataToHost();
+	
+	uint8_t tx_pkt = 0;
+	
+	#ifdef USE_ENCS
+	tx_pkt += Encoder_sendOdometryToHost();
+	#endif
+	
+	#ifdef USE_IMU
+	tx_pkt += IMU_sendIMUDataToHost();
+	tx_pkt += IMU_sendOdometryToHost();
+	#endif
+
+	system_status.tx_count += tx_pkt;
 
 	system_status.idle_cycles = 0;
 	system_status.global_secs_count++;
@@ -57,8 +69,8 @@ static void Firmware_setPeriodicDataCommunication(uint16_t frequency) {
   uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
   
   // configure timer1, prescaler : 1024, CTC (Clear Timer on Compare match)
-  TCCR4A = 0;
-  TCCR4B = (1 << WGM12)| (1 << CS10) | (1 << CS12); 
+  TCCR5A = 0;
+  TCCR5B = (1 << WGM12)| (1 << CS10) | (1 << CS12); 
   
   /*
 	 * cpu frequency 16MHz = 16.000.000 Hz
@@ -66,13 +78,13 @@ static void Firmware_setPeriodicDataCommunication(uint16_t frequency) {
 	 *	-->> TCNT1 increased at a frequency of 16.000.000/1024 Hz = 15625 Hz
 	 *	so 1 ms will correspond do 15.625 counts
 	 */
-  OCR4A = (uint16_t)(15.625 * period_ms);
+  OCR5A = (uint16_t)(15.625 * period_ms);
 
 	// timer-interrupt enabling will be executed atomically (no other interrupts)
 		// and ATOMIC_FORCEON ensures Global Interrupt Status flag bit in SREG set afetrwards
 		// (sei() not needed)
   ATOMIC_BLOCK(ATOMIC_FORCEON) {
-  	TIMSK4 |= (1 << OCIE4A);  // enable the timer interrupt (istruz. elementare, no interrupt)
+  	TIMSK5 |= (1 << OCIE5A);  // enable the timer interrupt (istruz. elementare, no interrupt)
   }
 }
 
@@ -91,20 +103,27 @@ int main(void){
 	
 	#ifdef USE_IMU
 	IMU_Init();
+	IMU_OdometryInit();
 	#endif
 	
 	PacketHandler_init();
 	
 	#ifdef USE_IMU
-	IMU_GyroscopeCalibration();
+	IMU_Calibration();
 	#endif
 	
+	#ifndef DEBUG_PRINTF
 	Firmware_checkConnection(SYNCHRONIZATION_CYCLES);
 	Firmware_setPeriodicDataCommunication(FIRMWARE_COMMUNICATION_RATE);
+	#endif
 	
 	uint8_t buffer[PACKET_MAX_SIZE];
 	PacketHeader* pkt = (PacketHeader*)buffer;
 	memset(pkt, 0, PACKET_MAX_SIZE);
+	
+	#ifdef DEBUG_PRINTF
+	printf("start\n");
+	#endif
 	
 	while(1) {
 		system_status.idle_cycles++;
