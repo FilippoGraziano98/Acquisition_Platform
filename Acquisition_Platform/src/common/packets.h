@@ -1,7 +1,7 @@
 #pragma once
 #include "packet_header.h"
 
-#include "../firmware/encoder/encoder.h"	//for NUM_ENCODERS
+#include "../firmware/firmware_constants.h"	//for NUM_ENCODERS, for IMU_N
 
 //TODO set seq to a global epoque id
   // simple macro to initialize a packet
@@ -75,7 +75,7 @@ typedef struct {
 	
 	float odom_x;
 	float odom_y;
-	float odom_theta;
+	float odom_theta;	//(radianti)
 	
 	float translational_velocity;
 	float rotational_velocity;
@@ -129,14 +129,22 @@ typedef struct {
 typedef struct {
   PacketHeader header;
 	
-	float odom_x;
-	float odom_y;
+	float imu_odom_x;
+	float imu_odom_y;
+	float imu_odom_z;
 	
-	float imu_yaw;	//rotation on z-axis
-	float imu_pitch;//rotation on y-axis
-	float imu_roll;	//rotation on x-axis
+	float translational_velocity_x_axis;
+	float translational_velocity_y_axis;
+	float translational_velocity_z_axis;
 	
-	float translational_velocity;
+	float translational_acceleration_x_axis;
+	float translational_acceleration_y_axis;
+	float translational_acceleration_z_axis;
+	
+	float imu_yaw;	//rotation on z-axis (gradi)
+	float imu_pitch;//rotation on y-axis (gradi)
+	float imu_roll;	//rotation on x-axis (gradi)
+	
 	float rotational_velocity_z_axis;
 	float rotational_velocity_y_axis;
 	float rotational_velocity_x_axis;

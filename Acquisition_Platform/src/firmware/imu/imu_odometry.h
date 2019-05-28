@@ -1,12 +1,22 @@
 #pragma once
 
+#include "firmware_constants.h"
 #include "../packets/uart_packets.h"
 #include "imu.h"
+
+//TODO reset imu at least 100Hz
+//so at 100Hz in (i2c callback) I integrate delta_angles, and delta x,y,z
+//at lower rate, update matrices, and data in global coordinates
+
 
 #define M_PI 3.141592654
 
 //IMU_OdometryUpdate will be called in IMU_AccelGyro_Callback
-#define IMU_ODOMETRY_UPDATE_RATE IMU_UPDATE_RATE	//500 Hz
+#define IMU_ODOMETRY_UPDATE_RATE (IMU_UPDATE_RATE*2)	//500 Hz
+
+#define IMU_ANG_VEL_THRESHOLD 0.4 //DPS
+#define IMU_TRASL_ACC_THRESHOLD 0.05 //G-Forces
+#define G_FORCE_ACCEL 9.8 //accel[m/s^2] = accel[G-Force]*9.8
 
 typedef struct IMU_OdometryController_t{
 	//sequence increased at each timer interrupt occured
@@ -17,6 +27,10 @@ typedef struct IMU_OdometryController_t{
 	//time between two consecutive updates
 	float delta_time;	//secs
 	
+	//variabili di appoggio
+	AccelerometerPacket accel_values;
+	GyroscopePacket gyro_values;
+	
 	//odometry is stored in a packet ready to be sent
 	IMUOdometryPacket odometry_status;
 	
@@ -25,7 +39,7 @@ typedef struct IMU_OdometryController_t{
 
 void IMU_OdometryInit(void);
 
-void IMU_OdometryUpdate(AccelerometerPacket* accel_values, GyroscopePacket* gyro_values);
+void IMU_OdometryUpdate(void);
 
 
 /*

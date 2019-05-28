@@ -8,6 +8,7 @@
 #include "serial/serial.h"
 #include "serial/serial_communication.h"
 
+#include "../firmware/firmware_constants.h"
 
 #define SERIAL_SPEED 57600
 #define SERIAL_PARITY 0
@@ -314,6 +315,9 @@ void Host_printIMUData() {
 }
 
 void Host_printIMUOdometryData() {
+	printf("%d) odom_x: %f, odom_y: %f, odom_z: %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.imu_odom_x, Global_Host.imu_odom_packet.imu_odom_y, Global_Host.imu_odom_packet.imu_odom_z);
+	printf("%d) translational velocities: x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.translational_velocity_x_axis, Global_Host.imu_odom_packet.translational_velocity_y_axis, Global_Host.imu_odom_packet.translational_velocity_z_axis);
+	printf("%d) translational accelerations: x-axis: %f, y-axis: %f, z-axis: %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.translational_acceleration_x_axis, Global_Host.imu_odom_packet.translational_acceleration_y_axis, Global_Host.imu_odom_packet.translational_acceleration_z_axis);
 	printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.imu_yaw, Global_Host.imu_odom_packet.imu_pitch, Global_Host.imu_odom_packet.imu_roll);
 	printf("%d) rotational velocities: z-axis: %f, y-axis: %f, x-axis: %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.rotational_velocity_z_axis, Global_Host.imu_odom_packet.rotational_velocity_y_axis, Global_Host.imu_odom_packet.rotational_velocity_x_axis);
 	printf("\n");

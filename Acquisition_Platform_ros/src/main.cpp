@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
 	Host_ros host_ros(nh);
 	host_ros.setOdomFrameId("/odom");
 	host_ros.setOdomTopic("/odom");
+	host_ros.setIMUOdomFrameId("/imu_odom");
+	host_ros.setIMUOdomTopic("/imu_odom");
 	host_ros.advertise();
 	
 	ros::Rate loop_rate(10); //10 Hz
@@ -94,6 +96,7 @@ int main(int argc, char** argv) {
 	#endif
 	
 	OdometryPacket odom_data;
+	IMUOdometryPacket imu_odom_data;
 	
 	
 	while(ros::ok()) {
@@ -101,15 +104,15 @@ int main(int argc, char** argv) {
 		Host_getOdometryData(&odom_data);
 		//Host_printOdometryData();
 		
-		host_ros.publish(&odom_data);
+		host_ros.odom_publish(&odom_data);
 		#endif
 		
 		#ifdef IMU
-		Host_getAccelerometerData();
-		Host_getGyroscopeData();
-		Host_getMagnetometerData();
+		Host_getIMUOdometryData(&imu_odom_data);
+		//Host_printIMUData();
+		printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", imu_odom_data.header.seq, imu_odom_data.imu_yaw, imu_odom_data.imu_pitch, imu_odom_data.imu_roll);
 		
-		Host_printIMUData();
+		host_ros.imu_odom_publish(&imu_odom_data);
 		#endif
 		
 		loop_rate.sleep();

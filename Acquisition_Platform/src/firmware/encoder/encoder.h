@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
+#include "firmware_constants.h"
 
-#define NUM_ENCODERS 2
 // empirically checked that wit a 180 degrees turn encoder from 0 goes to 40
 #define ENCODER_TICKS_FOR_HALF_TURN 40
 

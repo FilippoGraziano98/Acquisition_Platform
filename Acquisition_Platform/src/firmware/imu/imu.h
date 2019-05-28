@@ -115,11 +115,11 @@ typedef struct IMU_t {
  * Per the Nyquist sampling criterion, bandwidth is half the output_data_rate
  *
  * in IMURaw_Init, we set
- *		Gyroscope Bandwidth to 250 Hz
- *		Accelerometer Bandwidth to 218.1 Hz
- *	so we set output_data_rate to 500 Hz = max(2*250,2*218)
+ *		Gyroscope Bandwidth to 41 Hz
+ *		Accelerometer Bandwidth to 44.8 Hz
+ *	so we set output_data_rate to 100 Hz >= max(2*41,2*44.8)
  */
-#define IMU_UPDATE_RATE 500 //Hz
+#define IMU_UPDATE_RATE 100 //Hz
 void IMU_Init(void);
 
 void IMU_Calibration(void);
@@ -129,11 +129,11 @@ void IMU_getCalibrationData(IMUConfigurationPacket* config_pkt);
 /*
  * IMU_get<Sensor>
  *	@params: ptr to x, y, z variables where to store values
- *	@returns: seq value of the sensor
+ *	@returns: <sensor>_raw_flag indicating if data updated or not
  */
-uint16_t IMU_getAccelerometer(AccelerometerPacket* accel_pkt);
-uint16_t IMU_getGyroscope(GyroscopePacket* gyro_pkt);
-uint16_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt);
+uint8_t IMU_getAccelerometer(AccelerometerPacket* accel_pkt);
+uint8_t IMU_getGyroscope(GyroscopePacket* gyro_pkt);
+uint8_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt);
 //uint16_t IMU_getTermometer(int16_t* temp);
 
 /*

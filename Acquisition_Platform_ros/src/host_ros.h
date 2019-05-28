@@ -5,6 +5,9 @@
 
 #include "packets.h"
 
+//to see better small movements in rviz
+#define SCALE_FACTOR 10
+
 class Host_ros{
 	public:
 		Host_ros(ros::NodeHandle& nh_);
@@ -17,13 +20,25 @@ class Host_ros{
 			_odom_topic = odom_topic_;
 		}
 		
-		void publish(OdometryPacket* odom_pkt);
+		inline void setIMUOdomFrameId(const std::string& imu_odom_frame_id_) {
+			_imu_odom_frame_id = imu_odom_frame_id_;
+		}
+		inline void setIMUOdomTopic(const std::string& imu_odom_topic_){
+			_imu_odom_topic = imu_odom_topic_;
+		}
+		
+		void odom_publish(OdometryPacket* odom_data);
+		void imu_odom_publish(IMUOdometryPacket* imu_odom_data);
 		void advertise();
 	
 	protected:
 		std::string _odom_frame_id;
 		std::string _odom_topic;
 		
+		std::string _imu_odom_frame_id;
+		std::string _imu_odom_topic;
+		
 		ros::NodeHandle& _nh;
 		ros::Publisher _odom_pub;
+		ros::Publisher _imu_odom_pub;
 };

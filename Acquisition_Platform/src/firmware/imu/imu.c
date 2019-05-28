@@ -36,22 +36,24 @@ static void IMU_ConfigRegs(void) {
 	I2C_WriteRegister(ACCELGYRO_DEVICE, GYRO_CONFIG, 0x00);
 	_delay_ms(10);
 	
-	//sets DLPF to have gyroscope bandwidth to 250Hz,
+	//sets DLPF to have gyroscope bandwidth to 41Hz,
 		// [Bandwidth is the highest frequency signal that can be sampled without aliasing
 					// by the specified Output Data Rate]
 		// Per the Nyquist sampling criterion, bandwidth is half the Output Data Rate.
-		// so we will sample data at Output Data Rate = 500 Hz
-	//I2C_WriteRegister(ACCELGYRO_DEVICE, CONFIG, 0x06);// 5Hz
-	I2C_WriteRegister(ACCELGYRO_DEVICE, CONFIG, 0x00);
+		// so we will sample data at Output Data Rate = 100 Hz
+	//I2C_WriteRegister(ACCELGYRO_DEVICE, CONFIG, 0x06);// 5 Hz
+	//I2C_WriteRegister(ACCELGYRO_DEVICE, CONFIG, 0x00);// 250 Hz
+	I2C_WriteRegister(ACCELGYRO_DEVICE, CONFIG, 0x03);//41 Hz
 	_delay_ms(10);
 	
 	//sets Accel Full Scale to 2g
 	//I2C_WriteBits(ACCELGYRO_DEVICE, ACCEL_CONFIG, (1<<4)|(1<<3), 0x00);
 	I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG, 0x00);
 	_delay_ms(10);
-	//sets Accel bandwidth to 218.1 Hz
-	//I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG2, 0x06);// 5Hz
-	I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG2, 0x00);
+	//sets Accel bandwidth to 44.8 Hz
+	//I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG2, 0x06);// 5 Hz
+	//I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG2, 0x00);//218.1 Hz
+	I2C_WriteRegister(ACCELGYRO_DEVICE, ACCEL_CONFIG2, 0x03);//44.8 Hz
 	_delay_ms(10);
 
 		//disables sleep mode
@@ -269,7 +271,7 @@ static void IMU_AccelGyro_Callback(uint8_t* buffer, uint8_t buflen) {
 
 	IMU.gyro_seq++;
 	
-	IMU_OdometryUpdate(&(IMU.accel_values), &(IMU.gyro_values));
+	//IMU_OdometryUpdate(&(IMU.accel_values), &(IMU.gyro_values));
 }
 static void IMU_AccelGyroRaw(void) {
 	IMU.accel_raw_flag = INVALID;
@@ -426,17 +428,17 @@ void IMU_getCalibrationData(IMUConfigurationPacket* config_pkt) {
 	memcpy((void*)config_pkt+sizeof(PacketHeader), (void*)&(IMU.imu_config_values)+sizeof(PacketHeader), sizeof(IMUConfigurationPacket)-sizeof(PacketHeader));
 }
 
-uint16_t IMU_getAccelerometer(AccelerometerPacket* accel_pkt) {
-	memcpy((void*)accel_pkt+sizeof(PacketHeader), (void*)&(IMU.accel_values)+sizeof(PacketHeader), sizeof(AccelerometerPacket)-sizeof(PacketHeader));
-	return IMU.accel_seq;
+uint8_t IMU_getAccelerometer(AccelerometerPacket* accel_pkt) {
+	memcpy(accel_pkt, &(IMU.accel_values), sizeof(AccelerometerPacket));
+	return IMU.accel_raw_flag;
 }
-uint16_t IMU_getGyroscope(GyroscopePacket* gyro_pkt) {
-	memcpy((void*)gyro_pkt+sizeof(PacketHeader), (void*)&(IMU.gyro_values)+sizeof(PacketHeader), sizeof(GyroscopePacket)-sizeof(PacketHeader));
-	return IMU.gyro_seq;
+uint8_t IMU_getGyroscope(GyroscopePacket* gyro_pkt) {
+	memcpy(gyro_pkt, &(IMU.gyro_values), sizeof(GyroscopePacket));
+	return IMU.gyro_raw_flag;
 }
-uint16_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt) {
-	memcpy((void*)magnet_pkt+sizeof(PacketHeader), (void*)&(IMU.magnet_values)+sizeof(PacketHeader), sizeof(MagnetometerPacket)-sizeof(PacketHeader));
-	return IMU.magnet_seq;
+uint8_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt) {
+	memcpy(magnet_pkt, &(IMU.magnet_values), sizeof(MagnetometerPacket));
+	return IMU.magnet_raw_flag;
 }
 
 

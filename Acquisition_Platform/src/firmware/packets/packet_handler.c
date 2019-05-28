@@ -91,7 +91,7 @@ static uint8_t AccelerometerPacketHandler(PacketHeader* pkt) {
 		
 	AccelerometerPacket* accel_pkt = (AccelerometerPacket*)pkt;
 	
-	pkt->seq = IMU_getAccelerometer(accel_pkt);
+	IMU_getAccelerometer(accel_pkt);
 		
 	uint8_t size = UART_send_packet((PacketHeader*)accel_pkt);
 	
@@ -109,7 +109,7 @@ static uint8_t GyroscopePacketHandler(PacketHeader* pkt) {
 	
 	GyroscopePacket* gyro_pkt = (GyroscopePacket*)pkt;
 	
-	pkt->seq = IMU_getGyroscope(gyro_pkt);
+	IMU_getGyroscope(gyro_pkt);
 	
 	uint8_t size = UART_send_packet((PacketHeader*)gyro_pkt);
 	
@@ -127,7 +127,7 @@ static uint8_t MagnetometerPacketHandler(PacketHeader* pkt) {
 	
 	MagnetometerPacket* magnet_pkt = (MagnetometerPacket*)pkt;
 	
-	pkt->seq = IMU_getMagnetometer(magnet_pkt);
+	IMU_getMagnetometer(magnet_pkt);
 	
 	uint8_t size = UART_send_packet((PacketHeader*)magnet_pkt);
 	
