@@ -1,4 +1,5 @@
 docs/*
+imgs/*
 README.txt
 *.o
 *.elf

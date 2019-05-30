@@ -39,7 +39,7 @@ void Host_ros::imu_odom_publish(IMUOdometryPacket* imu_odom_data) {
 	imu_odom_msg.pose.pose.position.y = imu_odom_data->imu_odom_y*SCALE_FACTOR;
 	imu_odom_msg.pose.pose.position.z = imu_odom_data->imu_odom_z*SCALE_FACTOR;
 	
-	float yaw_rad = imu_odom_data->imu_yaw * M_PI / M_180;
+	float yaw_rad = imu_odom_data->imu_yaw;
 	imu_odom_msg.pose.pose.orientation = tf::createQuaternionMsgFromYaw(yaw_rad);
 	//TODO roll, pitch
 	

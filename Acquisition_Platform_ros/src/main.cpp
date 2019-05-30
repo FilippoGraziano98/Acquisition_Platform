@@ -112,6 +112,11 @@ int main(int argc, char** argv) {
 		//Host_printIMUData();
 		printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", imu_odom_data.header.seq, imu_odom_data.imu_yaw, imu_odom_data.imu_pitch, imu_odom_data.imu_roll);
 		
+		printf("%d) accel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_acceleration_x_axis, imu_odom_data.translational_acceleration_y_axis, imu_odom_data.translational_acceleration_z_axis);
+		printf("%d) vel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_velocity_x_axis, imu_odom_data.translational_velocity_y_axis, imu_odom_data.translational_velocity_z_axis);
+		printf("%d) pos : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.imu_odom_x, imu_odom_data.imu_odom_y, imu_odom_data.imu_odom_z);
+		printf("\n");
+		
 		host_ros.imu_odom_publish(&imu_odom_data);
 		#endif
 		

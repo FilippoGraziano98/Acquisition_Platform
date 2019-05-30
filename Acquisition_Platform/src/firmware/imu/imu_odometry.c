@@ -26,26 +26,26 @@ ISR(TIMER4_COMPA_vect) {
 }
 
 static void IMU_setPeriodicOdometryUpdate(uint16_t frequency) {
-  uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
-  
-  // configure timer1, prescaler : 256, CTC (Clear Timer on Compare match)
-  TCCR4A = 0;
-  TCCR4B = (1 << WGM12) | (1 << CS12); 
-  
-  /*
+	uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
+	
+	// configure timer1, prescaler : 256, CTC (Clear Timer on Compare match)
+	TCCR4A = 0;
+	TCCR4B = (1 << WGM12) | (1 << CS12); 
+	
+	/*
 	 * cpu frequency 16MHz = 16.000.000 Hz
 	 * prescaler 256
 	 *	-->> TCNT1 increased at a frequency of 16.000.000/256 Hz = 62500 Hz
 	 *	so 1 ms will correspond do 62.5 counts
 	 */
-  OCR4A = (uint16_t)(62.5 * period_ms);
+	OCR4A = (uint16_t)(62.5 * period_ms);
 
 	// timer-interrupt enabling will be executed atomically (no other interrupts)
 		// and ATOMIC_FORCEON ensures Global Interrupt Status flag bit in SREG set afetrwards
 		// (sei() not needed)
-  ATOMIC_BLOCK(ATOMIC_FORCEON) {
-  	TIMSK4 |= (1 << OCIE4A);  // enable the timer interrupt (istruz. elementare, no interrupt)
-  }
+	ATOMIC_BLOCK(ATOMIC_FORCEON) {
+		TIMSK4 |= (1 << OCIE4A);	// enable the timer interrupt (istruz. elementare, no interrupt)
+	}
 }
 
 void IMU_OdometryInit(void) {
@@ -54,8 +54,10 @@ void IMU_OdometryInit(void) {
 	IMU_OdometryController.delta_time = 1. / (float)IMU_ODOMETRY_UPDATE_RATE;
 
 	INIT_PACKET(IMU_OdometryController.odometry_status, IMU_ODOMETRY_PACKET_ID);
-
-	IMU_setPeriodicOdometryUpdate(IMU_ODOMETRY_UPDATE_RATE);
+	
+	//in order to get all valid values of imu
+	//I will sample at both the frequency
+	IMU_setPeriodicOdometryUpdate(2*IMU_ODOMETRY_UPDATE_RATE);
 }
 
 //TODO set static?
@@ -70,8 +72,8 @@ void IMU_OdometryUpdate() {
 	//integro nel vettore spostamento (relativo all'attuale orientazione)
 	// dx = v*t + .5*a*t*t = (v + .5*a*t)*t
 	float delta_x_local = (IMU_OdometryController.odometry_status.translational_velocity_x_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_x_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
-	float delta_y_local = (IMU_OdometryController.odometry_status.translational_velocity_y_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_y_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
-	float delta_z_local = (IMU_OdometryController.odometry_status.translational_velocity_z_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_z_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
+	float delta_y_local = 0.0;//(IMU_OdometryController.odometry_status.translational_velocity_y_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_y_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
+	float delta_z_local = 0.0;//(IMU_OdometryController.odometry_status.translational_velocity_z_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_z_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
 	
 	// update global odom x, y, z
 	float sin_yaw = sin(IMU_OdometryController.odometry_status.imu_yaw);
@@ -90,11 +92,19 @@ void IMU_OdometryUpdate() {
 	IMU_OdometryController.odometry_status.rotational_velocity_z_axis = (fabs(IMU_OdometryController.gyro_values.gyro_z) > IMU_ANG_VEL_THRESHOLD) ? IMU_OdometryController.gyro_values.gyro_z : 0.;
 	IMU_OdometryController.odometry_status.rotational_velocity_y_axis = (fabs(IMU_OdometryController.gyro_values.gyro_y) > IMU_ANG_VEL_THRESHOLD) ? IMU_OdometryController.gyro_values.gyro_y : 0.;
 	IMU_OdometryController.odometry_status.rotational_velocity_x_axis = (fabs(IMU_OdometryController.gyro_values.gyro_x) > IMU_ANG_VEL_THRESHOLD) ? IMU_OdometryController.gyro_values.gyro_x : 0.;
-			
+	
+	float delta_yaw_deg = IMU_OdometryController.odometry_status.rotational_velocity_z_axis*IMU_OdometryController.delta_time;
+	float delta_pitch_deg = IMU_OdometryController.odometry_status.rotational_velocity_y_axis*IMU_OdometryController.delta_time;
+	float delta_roll_deg =	IMU_OdometryController.odometry_status.rotational_velocity_x_axis*IMU_OdometryController.delta_time;
+	
+	float delta_yaw_rad = delta_yaw_deg * M_PI / M_180;
+	float delta_pitch_rad = delta_pitch_deg * M_PI / M_180;
+	float delta_roll_rad = delta_roll_deg * M_PI / M_180;
+	
 	//update yaw, roll, pitch
-	IMU_OdometryController.odometry_status.imu_yaw += IMU_OdometryController.odometry_status.rotational_velocity_z_axis*IMU_OdometryController.delta_time;
-	IMU_OdometryController.odometry_status.imu_pitch += IMU_OdometryController.odometry_status.rotational_velocity_y_axis*IMU_OdometryController.delta_time;
-	IMU_OdometryController.odometry_status.imu_roll += IMU_OdometryController.odometry_status.rotational_velocity_x_axis*IMU_OdometryController.delta_time;
+	IMU_OdometryController.odometry_status.imu_yaw += delta_yaw_rad;
+ 	IMU_OdometryController.odometry_status.imu_pitch += delta_pitch_rad;
+ 	IMU_OdometryController.odometry_status.imu_roll += delta_roll_rad;
 }
 
 

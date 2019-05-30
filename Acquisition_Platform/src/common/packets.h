@@ -141,9 +141,9 @@ typedef struct {
 	float translational_acceleration_y_axis;
 	float translational_acceleration_z_axis;
 	
-	float imu_yaw;	//rotation on z-axis (gradi)
-	float imu_pitch;//rotation on y-axis (gradi)
-	float imu_roll;	//rotation on x-axis (gradi)
+	float imu_yaw;	//rotation on z-axis (rad)
+	float imu_pitch;//rotation on y-axis (rad)
+	float imu_roll;	//rotation on x-axis (rad)
 	
 	float rotational_velocity_z_axis;
 	float rotational_velocity_y_axis;

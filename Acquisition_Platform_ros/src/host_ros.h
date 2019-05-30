@@ -6,7 +6,7 @@
 #include "packets.h"
 
 //to see better small movements in rviz
-#define SCALE_FACTOR 10
+#define SCALE_FACTOR 4
 
 class Host_ros{
 	public:
