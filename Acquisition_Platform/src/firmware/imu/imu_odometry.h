@@ -19,6 +19,9 @@
 #define IMU_TRASL_ACC_THRESHOLD 0.05 //G-Forces
 #define G_FORCE_ACCEL 9.8 //accel[m/s^2] = accel[G-Force]*9.8
 
+#define STOP_BRAKING_TRESHOLD 2
+#define STOP_ZERO_ACCEL_OUTLIER_FILTER 5
+
 typedef struct IMU_OdometryController_t{
 	//sequence increased at each timer interrupt occured
 	uint16_t imu_time_seq;
@@ -34,6 +37,13 @@ typedef struct IMU_OdometryController_t{
 	
 	//odometry is stored in a packet ready to be sent
 	IMUOdometryPacket odometry_status;
+	
+	//to better control braking
+	/*TODO
+	uint16_t total_time_pos_accel;
+	uint16_t total_time_neg_accel;
+	uint16_t curr_time_zero_accel;
+	*/
 	
 } IMU_OdometryController_t;
 

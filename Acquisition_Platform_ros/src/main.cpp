@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
 	host_ros.advertise();
 	
 	ros::Rate loop_rate(10); //10 Hz
-	
+	int i = 0;
 	
 	#ifdef DEBUG_PRINTF
 	printf("WARNING: DEBUG_PRINTF is defined, packetization may be broken! Use Cutecom\n");
@@ -98,28 +98,38 @@ int main(int argc, char** argv) {
 	OdometryPacket odom_data;
 	IMUOdometryPacket imu_odom_data;
 	
-	
 	while(ros::ok()) {
 		#ifdef ENCS
 		Host_getOdometryData(&odom_data);
-		//Host_printOdometryData();
-		
+				
 		host_ros.odom_publish(&odom_data);
 		#endif
 		
 		#ifdef IMU
 		Host_getIMUOdometryData(&imu_odom_data);
-		//Host_printIMUData();
-		printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", imu_odom_data.header.seq, imu_odom_data.imu_yaw, imu_odom_data.imu_pitch, imu_odom_data.imu_roll);
-		
-		printf("%d) accel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_acceleration_x_axis, imu_odom_data.translational_acceleration_y_axis, imu_odom_data.translational_acceleration_z_axis);
-		printf("%d) vel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_velocity_x_axis, imu_odom_data.translational_velocity_y_axis, imu_odom_data.translational_velocity_z_axis);
-		printf("%d) pos : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.imu_odom_x, imu_odom_data.imu_odom_y, imu_odom_data.imu_odom_z);
-		printf("\n");
 		
 		host_ros.imu_odom_publish(&imu_odom_data);
 		#endif
 		
+		if( i % 10 == 0) {
+		
+			//Host_printOdometryData();
+			printf("%d)[enc] pos : x: %f, y: %f, z: %f\n", odom_data.header.seq, odom_data.odom_x, odom_data.odom_y, 0.);
+		
+			//Host_printIMUData();
+			//printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", imu_odom_data.header.seq, imu_odom_data.imu_yaw, imu_odom_data.imu_pitch, imu_odom_data.imu_roll);
+		
+			//printf("%d) accel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_acceleration_x_axis, imu_odom_data.translational_acceleration_y_axis, imu_odom_data.translational_acceleration_z_axis);
+			printf("%d)[imu] pos : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.imu_odom_x, imu_odom_data.imu_odom_y, imu_odom_data.imu_odom_z);
+			printf("%d)[imu] vel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_velocity_x_axis, imu_odom_data.translational_velocity_y_axis, imu_odom_data.translational_velocity_z_axis);
+			printf("%d)[imu] accel X : pos: %d, neg: %d, zero: %d\n", imu_odom_data.header.seq, imu_odom_data.total_time_pos_accel_x, imu_odom_data.total_time_neg_accel_x, imu_odom_data.curr_time_zero_accel_x);
+			printf("%d)[imu] accel Y : pos: %d, neg: %d, zero: %d\n", imu_odom_data.header.seq, imu_odom_data.total_time_pos_accel_y, imu_odom_data.total_time_neg_accel_y, imu_odom_data.curr_time_zero_accel_y);
+			printf("\n");
+
+			i -= 10;
+		}
+		
+		i++;
 		loop_rate.sleep();
 	}
 	

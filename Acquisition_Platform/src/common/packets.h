@@ -148,6 +148,14 @@ typedef struct {
 	float rotational_velocity_z_axis;
 	float rotational_velocity_y_axis;
 	float rotational_velocity_x_axis;
+	
+	//TODO TEMP
+	uint16_t total_time_pos_accel_x;
+	uint16_t total_time_neg_accel_x;
+	uint16_t curr_time_zero_accel_x;
+	uint16_t total_time_pos_accel_y;
+	uint16_t total_time_neg_accel_y;
+	uint16_t curr_time_zero_accel_y;
 } IMUOdometryPacket;
 #define IMU_ODOMETRY_PACKET_ID 8
 

@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <avr/interrupt.h>
@@ -69,10 +70,51 @@ void IMU_OdometryUpdate() {
 	IMU_OdometryController.odometry_status.translational_acceleration_z_axis = (fabs(IMU_OdometryController.accel_values.accel_z) > IMU_TRASL_ACC_THRESHOLD) ? IMU_OdometryController.accel_values.accel_z*G_FORCE_ACCEL : 0.;
 	
 	
+	// STOP DETECTION x axis
+	if ( IMU_OdometryController.odometry_status.translational_acceleration_x_axis > 0. ) {
+		IMU_OdometryController.odometry_status.total_time_pos_accel_x++;
+		IMU_OdometryController.odometry_status.curr_time_zero_accel_x = 0;
+	} else if ( IMU_OdometryController.odometry_status.translational_acceleration_x_axis < 0. ) {
+		IMU_OdometryController.odometry_status.total_time_neg_accel_x++;
+		IMU_OdometryController.odometry_status.curr_time_zero_accel_x = 0;
+	} else //accel_x_axis == 0.
+		IMU_OdometryController.odometry_status.curr_time_zero_accel_x++;	
+	
+	if( IMU_OdometryController.odometry_status.curr_time_zero_accel_x > STOP_ZERO_ACCEL_OUTLIER_FILTER && IMU_OdometryController.odometry_status.curr_time_zero_accel_x >= abs( IMU_OdometryController.odometry_status.total_time_pos_accel_x - IMU_OdometryController.odometry_status.total_time_neg_accel_x) * STOP_BRAKING_TRESHOLD) {
+		//after ha has had approximately
+			//the same time of positive and negative acceleration
+			//we assume it is in STOP state
+		IMU_OdometryController.odometry_status.translational_acceleration_x_axis = 0.;
+		IMU_OdometryController.odometry_status.translational_velocity_x_axis = 0.;
+		IMU_OdometryController.odometry_status.total_time_pos_accel_x = 0;
+		IMU_OdometryController.odometry_status.total_time_neg_accel_x = 0;
+	}
+	
+	
+	// STOP DETECTION y axis
+	if ( IMU_OdometryController.odometry_status.translational_acceleration_y_axis > 0. ) {
+		IMU_OdometryController.odometry_status.total_time_pos_accel_y++;
+		IMU_OdometryController.odometry_status.curr_time_zero_accel_y = 0;
+	} else if ( IMU_OdometryController.odometry_status.translational_acceleration_y_axis < 0. ) {
+		IMU_OdometryController.odometry_status.total_time_neg_accel_y++;
+		IMU_OdometryController.odometry_status.curr_time_zero_accel_y = 0;
+	} else //accel_x_axis == 0.
+		IMU_OdometryController.odometry_status.curr_time_zero_accel_y++;	
+	
+	if( IMU_OdometryController.odometry_status.curr_time_zero_accel_y > STOP_ZERO_ACCEL_OUTLIER_FILTER && IMU_OdometryController.odometry_status.curr_time_zero_accel_y >= abs( IMU_OdometryController.odometry_status.total_time_pos_accel_y - IMU_OdometryController.odometry_status.total_time_neg_accel_y) * STOP_BRAKING_TRESHOLD) {
+		//after ha has had approximately
+			//the same time of positive and negative acceleration
+			//we assume it is in STOP state
+		IMU_OdometryController.odometry_status.translational_acceleration_y_axis = 0.;
+		IMU_OdometryController.odometry_status.translational_velocity_y_axis = 0.;
+		IMU_OdometryController.odometry_status.total_time_pos_accel_y = 0;
+		IMU_OdometryController.odometry_status.total_time_neg_accel_y = 0;
+	}
+	
 	//integro nel vettore spostamento (relativo all'attuale orientazione)
 	// dx = v*t + .5*a*t*t = (v + .5*a*t)*t
 	float delta_x_local = (IMU_OdometryController.odometry_status.translational_velocity_x_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_x_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
-	float delta_y_local = 0.0;//(IMU_OdometryController.odometry_status.translational_velocity_y_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_y_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
+	float delta_y_local = (IMU_OdometryController.odometry_status.translational_velocity_y_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_y_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
 	float delta_z_local = 0.0;//(IMU_OdometryController.odometry_status.translational_velocity_z_axis + .5*IMU_OdometryController.odometry_status.translational_acceleration_z_axis*IMU_OdometryController.delta_time) * IMU_OdometryController.delta_time;
 	
 	// update global odom x, y, z
