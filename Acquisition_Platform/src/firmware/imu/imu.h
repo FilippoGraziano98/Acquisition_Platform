@@ -129,7 +129,12 @@ typedef struct IMU_t {
 #define IMU_UPDATE_RATE 100 //Hz
 void IMU_Init(void);
 
-void IMU_Calibration(void);
+/*
+ * IMU_Calibration
+ *	if @param full_calibration == 1, multi-axis calibration
+ *	else fast recalibration
+ */
+void IMU_Calibration(uint8_t full_calibration);
 
 void IMU_getCalibrationData(IMUConfigurationPacket* config_pkt);
 

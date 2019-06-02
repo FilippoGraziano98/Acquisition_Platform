@@ -41,16 +41,21 @@ int install_SIGINT_handler(void){
 int main(int argc, char** argv) {
 	int res;
 	
-	uint8_t do_calibration_flag = 0;
+	uint8_t calibration_flag = IMU_FAST_RECALIB;
 	
 	if( argc > 1 ) {
 		if( strncmp(argv[1], "--help", sizeof("--help")) == 0 || strncmp(argv[1], "-h", sizeof("-h")) == 0) {
 			printf("Usage: %s [PARAMS]\n",argv[0]);
 			printf("\t --calibrate : to calibrate imu\n");
-			printf("\t --no-calibrate : to load old calibration for imu (default)\n");
+			printf("\t --fast-recalibrate : to slightly update old calibration data (not saving)[default]\n");
+			printf("\t --no-calibrate : to load old calibration for imu\n");
 			return 0;
 		} else if( strncmp(argv[1], "--calibrate", sizeof("--calibrate")) == 0 )
-			do_calibration_flag = 1;
+			calibration_flag = IMU_CALIB_START;
+		else if( strncmp(argv[1], "--fast-recalibrate", sizeof("--fast-recalibrate")) == 0 )
+			calibration_flag = IMU_FAST_RECALIB;
+		else if( strncmp(argv[1], "--no-calibrate", sizeof("--no-calibrate")) == 0 )
+			calibration_flag = IMU_NO_CALIB;
 		else {
 			printf("Usage: %s --help/-h : to get help\n",argv[0]);
 			return -1;
@@ -112,7 +117,7 @@ int main(int argc, char** argv) {
 	
 	#ifdef IMU
 	//calibration
-	Host_handle_IMU_Calibration(do_calibration_flag);
+	Host_handle_IMU_Calibration(calibration_flag);
 	Host_printIMUConfiguration();
 	#endif
 	

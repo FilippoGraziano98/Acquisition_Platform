@@ -11,7 +11,6 @@ extern "C" {
 #endif
 
 
-
 typedef struct Host_t {
 	// file descriptor of the serial port
 	int serial_fd;

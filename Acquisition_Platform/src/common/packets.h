@@ -88,7 +88,8 @@ typedef struct {
 //packet sent from host to controller
 //informing it of which direction imu is now in order to calibrate
 //multi position calibration
-#define IMU_NO_CALIB -2
+#define IMU_NO_CALIB -3
+#define IMU_FAST_RECALIB -2
 #define IMU_CALIB_START -1
 #define IMU_POS_Z_UP 0 // z-axis upward
 #define IMU_POS_X_UP 1 // x-axis upward

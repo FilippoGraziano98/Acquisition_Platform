@@ -210,9 +210,9 @@ int Host_handle_IMU_Calibration(uint8_t calibrate_flag) {
 	IMUCalibrateRequest calib_req_pkt;
 	INIT_PACKET(calib_req_pkt, IMU_CALIBRATE_REQ_ID);
 	
-	if( !calibrate_flag ){
-		printf("[IMU_Calibration] IMU_NO_CALIB\n");
-		calib_req_pkt.imu_orientation = IMU_POS_Y_UP;
+	if( calibrate_flag != IMU_CALIB_START){
+		printf("[IMU_Calibration] IMU_NO_CALIB %d\n", calibrate_flag);
+		calib_req_pkt.imu_orientation = calibrate_flag;
 		res = Host_Serial_sendPacket((PacketHeader*)&calib_req_pkt);
 		if( res != SERIAL__SUCCESS)
 			printf("[IMU_Calibration IMU_NO_CALIB] Host_Serial_sendPacket error_code : %d\n", res);

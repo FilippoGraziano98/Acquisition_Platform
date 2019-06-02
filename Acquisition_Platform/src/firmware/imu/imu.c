@@ -440,18 +440,56 @@ void IMU_Calibration(void) {
 
 #define CALIBRATION_SAMPLES	128
 #define CALIBRATION_SAMPLES_LOG	7
-void IMU_Calibration(void) {
+void IMU_Calibration(uint8_t full_calibration) {
 	uint8_t res;
+	
+	if( !full_calibration ) {//IMU_FAST_RECALIB
+		int32_t gyro_x_sum=0, gyro_y_sum=0, gyro_z_sum=0;
+		int32_t accel_x_sum=0, accel_y_sum=0, accel_z_sum=0;
+	
+		uint8_t i;
+		for(i=0; i<CALIBRATION_SAMPLES; i++) {
+			//waits for gyroscope data to be valid
+			while(IMU.gyro_raw_flag == INVALID)
+				_delay_ms(1);
+		
+		
+			gyro_x_sum += IMU.gyro_raw_x;
+			gyro_y_sum += IMU.gyro_raw_y;
+			gyro_z_sum += IMU.gyro_raw_z;
+		
+			accel_x_sum += IMU.accel_raw_x;
+			accel_y_sum += IMU.accel_raw_y;
+			accel_z_sum += IMU.accel_raw_z;
+		
+		}
+	
+		int32_t gyro_x_recalib_bias = gyro_x_sum >> CALIBRATION_SAMPLES_LOG;
+		int32_t gyro_y_recalib_bias = gyro_y_sum >> CALIBRATION_SAMPLES_LOG;
+		int32_t gyro_z_recalib_bias = gyro_z_sum >> CALIBRATION_SAMPLES_LOG;
+		
+		int32_t accel_x_recalib_bias = accel_x_sum >> CALIBRATION_SAMPLES_LOG;
+		int32_t accel_y_recalib_bias = accel_y_sum >> CALIBRATION_SAMPLES_LOG;
+		int32_t accel_z_recalib_bias = accel_z_sum >> CALIBRATION_SAMPLES_LOG;
+		
+		IMU.imu_config_values.gyro_x_bias = gyro_x_recalib_bias;
+		IMU.imu_config_values.gyro_y_bias = gyro_y_recalib_bias;
+		IMU.imu_config_values.gyro_z_bias = gyro_z_recalib_bias;
+
+
+		IMU.imu_config_values.accel_x_bias = accel_x_recalib_bias;
+		IMU.imu_config_values.accel_y_bias = accel_y_recalib_bias;
+		IMU.imu_config_values.accel_z_bias = accel_z_recalib_bias;		
+		
+		return;	
+	}
+		
+	// complete multi-axis calibration
 	IMUCalibrateRequest calib_req_pkt;
 	INIT_PACKET(calib_req_pkt, IMU_CALIBRATE_REQ_ID);
 	
 	int32_t gyro_x_sum[IMU_N_POS]={}, gyro_y_sum[IMU_N_POS]={}, gyro_z_sum[IMU_N_POS]={};
 	int32_t accel_x_sum[IMU_N_POS]={}, accel_y_sum[IMU_N_POS]={}, accel_z_sum[IMU_N_POS]={};
-	
-	//note gravitational_acceleration is equal to an acceleration of 9.81 m/s^2 = 1G
-		//and so equal to accel_sensitivity
-	//int16_t gravitational_acceleration = (uint16_t)(1<<15) / (uint16_t)2;
-	//int16_t g_comp_x_axis=0, g_comp_y_axis=0, g_comp_z_axis=0;
 	
 	uint8_t p, i, orientation;
 	

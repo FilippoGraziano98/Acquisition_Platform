@@ -78,7 +78,9 @@ static uint8_t IMUCalibrationRequestPacketHandler(PacketHeader* pkt) {
 	IMUCalibrateRequest* calib_req = (IMUCalibrateRequest*)pkt;
 	
 	if(calib_req->imu_orientation == IMU_CALIB_START)
-		IMU_Calibration();
+		IMU_Calibration(1);
+	else if(calib_req->imu_orientation == IMU_FAST_RECALIB)
+		IMU_Calibration(0);
 	uint8_t res = IMU_sendCalibrationDataToHost();
 	
 	if( res > 0 )
