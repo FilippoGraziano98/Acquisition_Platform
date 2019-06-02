@@ -2,8 +2,12 @@
 #include "../../common/packets.h"
 #include "uart_packets.h"
 #include "../imu/imu.h"
+#include "../imu/imu_odometry.h"
 #include "../encoder/encoder.h"
 #include "../encoder/encoder_odometry.h"
+
+#include <avr/interrupt.h>
+#include <util/atomic.h>
 
 #include "packet_handler.h"
 
@@ -57,6 +61,27 @@ static uint8_t OdomPacketHandler(PacketHeader* pkt) {
 	uint8_t size = UART_send_packet((PacketHeader*)odom_pkt);
 	
 	if( size == pkt->size)
+		return PACKET_OP_SUCCESS;
+	else
+		return PACKET_SEND_INCOMPLETE;
+}
+
+static uint8_t IMUCalibrationRequestPacketHandler(PacketHeader* pkt) {
+	//we must fill in the gyroscope data
+		//we also set the seq/epoque
+	if(pkt->type != IMU_CALIBRATE_REQ_ID)
+		return PACKET_OPS_VECTOR_CORRUPTED;
+	
+	//TODO do we need to update the seq/epoque ??
+	//pkt->seq = AcquisitionPlatform_getGlobalSeq();
+	
+	IMUCalibrateRequest* calib_req = (IMUCalibrateRequest*)pkt;
+	
+	if(calib_req->imu_orientation == IMU_CALIB_START)
+		IMU_Calibration();
+	uint8_t res = IMU_sendCalibrationDataToHost();
+	
+	if( res > 0 )
 		return PACKET_OP_SUCCESS;
 	else
 		return PACKET_SEND_INCOMPLETE;
@@ -144,6 +169,7 @@ void PacketHandler_init(void) {
 	packetHandler.packetOps_vector[ENCODER_PACKET_ID] = EncoderPacketHandler;
 	packetHandler.packetOps_vector[ODOMETRY_PACKET_ID] = OdomPacketHandler;
 	
+	packetHandler.packetOps_vector[IMU_CALIBRATE_REQ_ID] = IMUCalibrationRequestPacketHandler;
 	packetHandler.packetOps_vector[IMU_CONFIG_PACKET_ID] = IMUConfigPacketHandler;
 	
 	packetHandler.packetOps_vector[ACCELEROMETER_PACKET_ID] = AccelerometerPacketHandler;

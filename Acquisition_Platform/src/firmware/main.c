@@ -7,6 +7,7 @@
 
 #include "avr_common/uart.h"
 #include "avr_common/i2c.h"
+#include "avr_common/eeprom.h"
 #include "encoder/encoder.h"
 #include "encoder/encoder_odometry.h"
 #include "imu/imu.h"
@@ -26,7 +27,7 @@
 SystemStatusPacket system_status;
 
 
-void Firmware_checkConnection(int cycles) {
+static void Firmware_checkConnection(int cycles) {
 	EchoPacket echo_pkt;
 	PacketHeader* pkt = (PacketHeader*)&echo_pkt;
 	
@@ -43,6 +44,22 @@ void Firmware_checkConnection(int cycles) {
 	}
 }
 
+static void Firmware_manageCalibrationPacket(void) {
+	IMUCalibrateRequest calib_req;
+	PacketHeader* pkt = (PacketHeader*)&calib_req;
+	
+	uint8_t calib_req_recv_flag=0;
+	while( !calib_req_recv_flag ) {
+		//controlla se sono arrivati pacchetti
+		if( UART_check_packet() ) {
+			UART_receive_packet(pkt);
+			PacketHandler_process(pkt);
+			calib_req_recv_flag = 1;
+		} else {
+			_delay_ms(10);
+		}
+	}
+}
 
 ISR(TIMER5_COMPA_vect) {
 	UART_send_packet((PacketHeader*)&(system_status));
@@ -65,8 +82,9 @@ ISR(TIMER5_COMPA_vect) {
 	//system_status.tx_count+=; //TODO
 }
 
-static void Firmware_setPeriodicDataCommunication(uint16_t frequency) {
-  uint16_t period_ms = 1000 / frequency; //from a frequency in Hz, we get a period in millisecs
+
+static void Firmware_setPeriodicDataCommunication(void) {
+  uint16_t period_ms = 1000 / FIRMWARE_COMMUNICATION_RATE; //from a frequency in Hz, we get a period in millisecs
   
   // configure timer1, prescaler : 1024, CTC (Clear Timer on Compare match)
   TCCR5A = 0;
@@ -95,7 +113,8 @@ int main(void){
 
 	UART_Init();
 	I2C_Init();
-	
+	EEPROM_init();
+
 	#ifdef USE_ENCS
 	Encoders_Init();
 	Encoder_OdometryInit();
@@ -106,24 +125,27 @@ int main(void){
 	IMU_OdometryInit();
 	#endif
 	
+	#ifndef DEBUG_PRINTF
 	PacketHandler_init();
+	Firmware_checkConnection(SYNCHRONIZATION_CYCLES);
+	#endif
 	
 	#ifdef USE_IMU
-	IMU_Calibration();
+	Firmware_manageCalibrationPacket();
 	#endif
 	
 	#ifndef DEBUG_PRINTF
-	Firmware_checkConnection(SYNCHRONIZATION_CYCLES);
-	Firmware_setPeriodicDataCommunication(FIRMWARE_COMMUNICATION_RATE);
+	Firmware_setPeriodicDataCommunication();
 	#endif
-	
-	uint8_t buffer[PACKET_MAX_SIZE];
-	PacketHeader* pkt = (PacketHeader*)buffer;
-	memset(pkt, 0, PACKET_MAX_SIZE);
 	
 	#ifdef DEBUG_PRINTF
 	printf("start\n");
 	#endif
+	
+	
+	uint8_t buffer[PACKET_MAX_SIZE];
+	PacketHeader* pkt = (PacketHeader*)buffer;
+	memset(pkt, 0, PACKET_MAX_SIZE);
 	
 	while(1) {
 		system_status.idle_cycles++;

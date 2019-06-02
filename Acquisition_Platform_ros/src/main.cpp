@@ -41,6 +41,21 @@ int install_SIGINT_handler(void){
 int main(int argc, char** argv) {
 	int res;
 	
+	uint8_t do_calibration_flag = 0;
+	
+	if( argc > 1 ) {
+		if( strncmp(argv[1], "--help", sizeof("--help")) == 0 || strncmp(argv[1], "-h", sizeof("-h")) == 0) {
+			printf("Usage: %s [PARAMS]\n",argv[0]);
+			printf("\t --calibrate : to calibrate imu\n");
+			printf("\t --no-calibrate : to load old calibration for imu (default)\n");
+			return 0;
+		} else if( strncmp(argv[1], "--calibrate", sizeof("--calibrate")) == 0 )
+			do_calibration_flag = 1;
+		else {
+			printf("Usage: %s --help/-h : to get help\n",argv[0]);
+			return -1;
+		}
+	}
 	
   ros::init(argc, argv, "acquisition_platform_node");
   ros::NodeHandle nh("~");
@@ -54,6 +69,11 @@ int main(int argc, char** argv) {
 	
 	ros::Rate loop_rate(10); //10 Hz
 	int i = 0;
+	
+	
+	OdometryPacket odom_data = {};
+	IMUOdometryPacket imu_odom_data = {};
+	
 	
 	#ifdef DEBUG_PRINTF
 	printf("WARNING: DEBUG_PRINTF is defined, packetization may be broken! Use Cutecom\n");
@@ -80,11 +100,6 @@ int main(int argc, char** argv) {
 	}
 	
 	#ifdef IMU
-	Host_getIMUConfiguration();
-	Host_printIMUConfiguration();
-	#endif
-	
-	#ifdef IMU
 	printf("IMU\n");
 	#else
 	printf("no IMU\n");
@@ -95,8 +110,11 @@ int main(int argc, char** argv) {
 	printf("no ENCS\n");
 	#endif
 	
-	OdometryPacket odom_data;
-	IMUOdometryPacket imu_odom_data;
+	#ifdef IMU
+	//calibration
+	Host_handle_IMU_Calibration(do_calibration_flag);
+	Host_printIMUConfiguration();
+	#endif
 	
 	while(ros::ok()) {
 		#ifdef ENCS

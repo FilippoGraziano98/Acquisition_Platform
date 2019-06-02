@@ -65,9 +65,10 @@ void IMU_OdometryInit(void) {
 void IMU_OdometryUpdate() {
 	
 	// filtro passa-alto per le accelerazioni traslazionali
-	IMU_OdometryController.odometry_status.translational_acceleration_x_axis = (fabs(IMU_OdometryController.accel_values.accel_x) > IMU_TRASL_ACC_THRESHOLD) ? IMU_OdometryController.accel_values.accel_x*G_FORCE_ACCEL : 0.;
-	IMU_OdometryController.odometry_status.translational_acceleration_y_axis = (fabs(IMU_OdometryController.accel_values.accel_y) > IMU_TRASL_ACC_THRESHOLD) ? IMU_OdometryController.accel_values.accel_y*G_FORCE_ACCEL : 0.;
-	IMU_OdometryController.odometry_status.translational_acceleration_z_axis = (fabs(IMU_OdometryController.accel_values.accel_z) > IMU_TRASL_ACC_THRESHOLD) ? IMU_OdometryController.accel_values.accel_z*G_FORCE_ACCEL : 0.;
+	IMU_OdometryController.odometry_status.translational_acceleration_x_axis = (fabs(IMU_OdometryController.accel_values.accel_x) > IMU_TRASL_ACC_THRESHOLD) ? IMU_OdometryController.accel_values.accel_x*G_FORCE_ACCEL_M_S2 : 0.;
+	IMU_OdometryController.odometry_status.translational_acceleration_y_axis = (fabs(IMU_OdometryController.accel_values.accel_y) > IMU_TRASL_ACC_THRESHOLD) ? IMU_OdometryController.accel_values.accel_y*G_FORCE_ACCEL_M_S2 : 0.;
+		//since we are in 2D, we'll always have a gravitational acceleration componenet on the z-axis, for which we must compensate
+	IMU_OdometryController.odometry_status.translational_acceleration_z_axis = (fabs(IMU_OdometryController.accel_values.accel_z - G_FORCE_ACCEL_G) > IMU_TRASL_ACC_THRESHOLD) ? IMU_OdometryController.accel_values.accel_z*G_FORCE_ACCEL_M_S2 : 0.;
 	
 	
 	// STOP DETECTION x axis
@@ -80,7 +81,7 @@ void IMU_OdometryUpdate() {
 	} else //accel_x_axis == 0.
 		IMU_OdometryController.odometry_status.curr_time_zero_accel_x++;	
 	
-	if( IMU_OdometryController.odometry_status.curr_time_zero_accel_x > STOP_ZERO_ACCEL_OUTLIER_FILTER && IMU_OdometryController.odometry_status.curr_time_zero_accel_x >= abs( IMU_OdometryController.odometry_status.total_time_pos_accel_x - IMU_OdometryController.odometry_status.total_time_neg_accel_x) * STOP_BRAKING_TRESHOLD) {
+	if( IMU_OdometryController.odometry_status.curr_time_zero_accel_x > STOP_ZERO_ACCEL_OUTLIER_FILTER && IMU_OdometryController.odometry_status.curr_time_zero_accel_x >= abs( IMU_OdometryController.odometry_status.total_time_pos_accel_x - IMU_OdometryController.odometry_status.total_time_neg_accel_x) * STOP_BREAKING_TRESHOLD) {
 		//after ha has had approximately
 			//the same time of positive and negative acceleration
 			//we assume it is in STOP state
@@ -101,7 +102,7 @@ void IMU_OdometryUpdate() {
 	} else //accel_x_axis == 0.
 		IMU_OdometryController.odometry_status.curr_time_zero_accel_y++;	
 	
-	if( IMU_OdometryController.odometry_status.curr_time_zero_accel_y > STOP_ZERO_ACCEL_OUTLIER_FILTER && IMU_OdometryController.odometry_status.curr_time_zero_accel_y >= abs( IMU_OdometryController.odometry_status.total_time_pos_accel_y - IMU_OdometryController.odometry_status.total_time_neg_accel_y) * STOP_BRAKING_TRESHOLD) {
+	if( IMU_OdometryController.odometry_status.curr_time_zero_accel_y > STOP_ZERO_ACCEL_OUTLIER_FILTER && IMU_OdometryController.odometry_status.curr_time_zero_accel_y >= abs( IMU_OdometryController.odometry_status.total_time_pos_accel_y - IMU_OdometryController.odometry_status.total_time_neg_accel_y) * STOP_BREAKING_TRESHOLD) {
 		//after ha has had approximately
 			//the same time of positive and negative acceleration
 			//we assume it is in STOP state

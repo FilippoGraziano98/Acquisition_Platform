@@ -10,6 +10,9 @@
 //success
 #define PACKET_OP_SUCCESS 0
 
+//define in main.c
+//extern void Firmware_setPeriodicDataCommunication(void);
+
 typedef uint8_t(*PacketOpFunctionType)(PacketHeader* pkt);
 
 typedef struct PacketHandler {

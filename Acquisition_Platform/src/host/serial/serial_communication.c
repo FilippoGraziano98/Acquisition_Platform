@@ -269,6 +269,14 @@ int Host_Serial_registerPacketHandler(PacketType packet_type, PacketOpFunctionTy
 	return SERIAL__SUCCESS;
 }
 
+void Host_Serial_Print_Debug_Info(){
+	printf("[_rxThreadFn] rx_buffer %d\n", Host_serial.rx_size);
+	int e;
+	for(e=Host_serial.rx_start; e<Host_serial.rx_start+Host_serial.rx_size; e++){
+		printf("%d) %d 0x%02x\n", e, Host_serial.rx_buffer[e], Host_serial.rx_buffer[e]);
+	}
+}
+
 void Host_Serial_destroy(void) {
 	//TODO
 	//pthread_cancel

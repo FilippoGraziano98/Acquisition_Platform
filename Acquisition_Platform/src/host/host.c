@@ -29,6 +29,8 @@ static void Host_saveIMUOdometryPkt(PacketHeader* pkt);
 int Host_init(const char* device) {
 	int res;
 	
+	memset(&Global_Host, 0, sizeof(Host_t));
+	
 	Global_Host.serial_fd = serial_open(device);
 	if ( Global_Host.serial_fd < 0 ) {
 		printf("[Host_init] Error in serial_open for SERIAL_NAME : %s\n", device);
@@ -201,6 +203,92 @@ int Host_getOdometryData() {
 	return 0;
 }
 */
+
+int Host_handle_IMU_Calibration(uint8_t calibrate_flag) {
+	uint8_t res;
+
+	IMUCalibrateRequest calib_req_pkt;
+	INIT_PACKET(calib_req_pkt, IMU_CALIBRATE_REQ_ID);
+	
+	if( !calibrate_flag ){
+		printf("[IMU_Calibration] IMU_NO_CALIB\n");
+		calib_req_pkt.imu_orientation = IMU_POS_Y_UP;
+		res = Host_Serial_sendPacket((PacketHeader*)&calib_req_pkt);
+		if( res != SERIAL__SUCCESS)
+			printf("[IMU_Calibration IMU_NO_CALIB] Host_Serial_sendPacket error_code : %d\n", res);
+		
+		//saves it in Global_Host.imu_config_packet
+		res = Host_Serial_receivePacket((PacketHeader*)&(Global_Host.imu_config_packet));
+		if( res != SERIAL__SUCCESS)
+			printf("[IMU_Calibration IMU_NO_CALIB] Host_Serial_receivePacket error_code : %d\n", res);
+		
+		return 0;
+	}
+	
+	printf("[IMU_Calibration] IMU_CALIB_START\n[press key to continue]");
+	getchar();
+	printf("\n");
+		
+	calib_req_pkt.imu_orientation = IMU_CALIB_START;
+	//asks the controller for update imu configuration
+	res = Host_Serial_sendPacket((PacketHeader*)&calib_req_pkt);
+	if( res != SERIAL__SUCCESS)
+		printf("[IMU_Calibration IMU_CALIB_START] Host_Serial_sendPacket error_code : %d\n", res);
+	
+	int p;
+	for(p=0; p < IMU_N_POS; p++) {
+		switch (p) {
+			case IMU_POS_Z_UP:
+				printf("[IMU_Calibration] place IMU with Z-axis UPward\n[press key to continue]");
+				break;
+			case IMU_POS_X_UP:
+				printf("[IMU_Calibration] place IMU with X-axis UPward\n[press key to continue]");
+				break;
+			case IMU_POS_Y_UP:
+				printf("[IMU_Calibration] place IMU with Y-axis UPward\n[press key to continue]");
+				break;
+			case IMU_POS_Z_DOWN:
+				printf("[IMU_Calibration] place IMU with Z-axis DOWNward\n[press key to continue]");
+				break;
+			case IMU_POS_X_DOWN:
+				printf("[IMU_Calibration] place IMU with X-axis DOWNward\n[press key to continue]");
+				break;
+			case IMU_POS_Y_DOWN:
+				printf("[IMU_Calibration] place IMU with Y-axis DOWNward\n[press key to continue]");
+				break;
+			default:
+				//should never get here
+				printf("[IMU_Calibration] WARNING what is imu_orientation %d?\n[press key to continue]", p);
+				break;
+		}
+		getchar();
+		printf("\n");
+		
+		calib_req_pkt.imu_orientation = p;
+		//asks the controller for update imu configuration
+		res = Host_Serial_sendPacket((PacketHeader*)&calib_req_pkt);
+		if( res != SERIAL__SUCCESS)
+			printf("[IMU_Calibration %d/%d] Host_Serial_sendPacket error_code : %d\n", p, IMU_N_POS, res);
+		
+		
+		printf("waiting for answer ...\n");		
+		//waits for ack from controller
+		res = Host_Serial_receivePacket((PacketHeader*)&calib_req_pkt);	
+		//res = Host_Serial_receivePacket((PacketHeader*)&(Global_Host.imu_config_packet));
+		if( res != SERIAL__SUCCESS)
+			printf("[IMU_Calibration %d/%d] Host_Serial_receivePacket error_code : %d\n", p, IMU_N_POS, res);
+	}
+	
+	printf("waiting for final answer..\n");
+	//saves it in Global_Host.imu_config_packet
+	res = Host_Serial_receivePacket((PacketHeader*)&(Global_Host.imu_config_packet));
+	if( res != SERIAL__SUCCESS)
+		printf("[IMU_Calibration] Host_Serial_receivePacket error_code : %d\n", res);
+	
+	return 0;
+}
+
+//deprecated
 int Host_getIMUConfiguration() {
 	int res;
 	//asks the controller for update imu configuration
@@ -215,6 +303,8 @@ int Host_getIMUConfiguration() {
 	
 	return 0;
 }
+
+
 /*
 int Host_getAccelerometerData() {
 	int res;
@@ -301,9 +391,25 @@ void Host_printOdometryData() {
 void Host_printIMUConfiguration() {
 	printf("=== IMU CONFIGURATION ===\n");
 	printf("Gyroscope [seq: %d]:\n", Global_Host.imu_config_packet.header.seq);
-	printf("\tx-axis bias: %d\n\ty-axis bias: %d\n\tz-axis bias: %d\n", Global_Host.imu_config_packet.gyro_x_bias, Global_Host.imu_config_packet.gyro_y_bias, Global_Host.imu_config_packet.gyro_z_bias);
+	printf("\tx-axis bias: %d scale: %f\n\ty-axis bias: %d scale: %f\n\tz-axis bias: %d scale: %f\n", Global_Host.imu_config_packet.gyro_x_bias, Global_Host.imu_config_packet.gyro_x_scale, Global_Host.imu_config_packet.gyro_y_bias, Global_Host.imu_config_packet.gyro_y_scale, Global_Host.imu_config_packet.gyro_z_bias, Global_Host.imu_config_packet.gyro_z_scale);
 	printf("Accelerometer [seq: %d]:\n", Global_Host.imu_config_packet.header.seq);
-	printf("\tx-axis bias: %d\n\ty-axis bias: %d\n\tz-axis bias: %d\n", Global_Host.imu_config_packet.accel_x_bias, Global_Host.imu_config_packet.accel_y_bias, Global_Host.imu_config_packet.accel_z_bias);
+	printf("\tx-axis bias: %d scale: %f\n\ty-axis bias: %d scale: %f\n\tz-axis bias: %d scale: %f\n", Global_Host.imu_config_packet.accel_x_bias, Global_Host.imu_config_packet.accel_x_scale, Global_Host.imu_config_packet.accel_y_bias, Global_Host.imu_config_packet.accel_y_scale, Global_Host.imu_config_packet.accel_z_bias, Global_Host.imu_config_packet.accel_z_scale);
+	
+	#ifdef DEBUG_IMU_CALIB
+	int i;
+	printf("x: [");
+	for(i=0; i<IMU_N_POS; i++)
+		printf("%d, ",Global_Host.imu_config_packet.ac_x[i]);
+	printf("]\n");
+	printf("y: [");
+	for(i=0; i<IMU_N_POS; i++)
+		printf("%d, ",Global_Host.imu_config_packet.ac_y[i]);
+	printf("]\n");
+	printf("z: [");
+	for(i=0; i<IMU_N_POS; i++)
+		printf("%d, ",Global_Host.imu_config_packet.ac_z[i]);
+	printf("]\n");
+	#endif
 }
 
 void Host_printIMUData() {

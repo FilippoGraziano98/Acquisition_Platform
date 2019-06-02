@@ -3,11 +3,13 @@
 #include <util/atomic.h>
 #include <util/delay.h>
 
+
 #include <string.h>
 #ifdef DEBUG_PRINTF_
 #include <stdio.h>
 #endif
 
+#include "../avr_common/eeprom.h"
 #include "../avr_common/i2c_communication.h"
 
 #include "imu.h"
@@ -145,6 +147,11 @@ static void IMU_setPeriodicDataUpdate(uint16_t frequency) {
 void IMU_Init(void) {
 	IMU_StructInit();
 	IMU_ConfigRegs();
+	
+	//reload old calibration
+	EEPROM_read(&(IMU.imu_config_values), IMU_CALIBRATION_ADDRESS, sizeof(IMUConfigurationPacket));
+	INIT_PACKET(IMU.imu_config_values, IMU_CONFIG_PACKET_ID);
+	
 	IMU_setPeriodicDataUpdate(IMU_UPDATE_RATE);
 }
 
@@ -254,20 +261,20 @@ static void IMU_AccelGyro_Callback(uint8_t* buffer, uint8_t buflen) {
 	#endif
 	
 	//accelerometer
-	float accel_sensitivity = (uint16_t)(1<<15) / (float)2;
+	//float accel_sensitivity = (uint16_t)(1<<15) / (float)2;
 		
-	IMU.accel_values.accel_x = (float)(IMU.accel_raw_x - IMU.imu_config_values.accel_x_bias) / accel_sensitivity;
-	IMU.accel_values.accel_y = (float)(IMU.accel_raw_y - IMU.imu_config_values.accel_y_bias) / accel_sensitivity;
-	IMU.accel_values.accel_z = (float)(IMU.accel_raw_z - IMU.imu_config_values.accel_z_bias) / accel_sensitivity;
+	IMU.accel_values.accel_x = (float)(IMU.accel_raw_x - IMU.imu_config_values.accel_x_bias) /  IMU.imu_config_values.accel_x_scale;
+	IMU.accel_values.accel_y = (float)(IMU.accel_raw_y - IMU.imu_config_values.accel_y_bias) /  IMU.imu_config_values.accel_y_scale;
+	IMU.accel_values.accel_z = (float)(IMU.accel_raw_z - IMU.imu_config_values.accel_z_bias) /  IMU.imu_config_values.accel_z_scale;
 
 	IMU.accel_seq++;
 	
 	//gyroscope
-	float gyro_sensitivity = (uint16_t)(1<<15) / (float)250;
+	//float gyro_sensitivity = (uint16_t)(1<<15) / (float)250;
 	
-	IMU.gyro_values.gyro_x = (float)(IMU.gyro_raw_x - IMU.imu_config_values.gyro_x_bias) / gyro_sensitivity;
-	IMU.gyro_values.gyro_y = (float)(IMU.gyro_raw_y - IMU.imu_config_values.gyro_y_bias) / gyro_sensitivity;
-	IMU.gyro_values.gyro_z = (float)(IMU.gyro_raw_z - IMU.imu_config_values.gyro_z_bias) / gyro_sensitivity;
+	IMU.gyro_values.gyro_x = (float)(IMU.gyro_raw_x - IMU.imu_config_values.gyro_x_bias) /  IMU.imu_config_values.gyro_x_scale;
+	IMU.gyro_values.gyro_y = (float)(IMU.gyro_raw_y - IMU.imu_config_values.gyro_y_bias) /  IMU.imu_config_values.gyro_y_scale;
+	IMU.gyro_values.gyro_z = (float)(IMU.gyro_raw_z - IMU.imu_config_values.gyro_z_bias) /  IMU.imu_config_values.gyro_z_scale;
 
 	IMU.gyro_seq++;
 	
@@ -340,8 +347,8 @@ static void IMU_TermometerRaw(void) {
 }
 
 
-#define CALIBRATION_SAMPLES	64
-#define CALIBRATION_SAMPLES_LOG	6
+//#define CALIBRATION_SAMPLES	64
+//#define CALIBRATION_SAMPLES_LOG	6
 /*
 As with any sensor, the values you measure will contain some amount of error or bias.
 You can see gyro bias by measuring the output when the gyro is still.
@@ -355,6 +362,8 @@ In order to correct for these errors, the gyro must be calibrated.
 
 This is usually done by keeping the gyro still and zeroing all of the readings in your code.
 */
+
+/* DEPRECATED
 static void IMU_GyroscopeCalibration(void) {
 	uint32_t gyro_x_sum=0, gyro_y_sum=0, gyro_z_sum=0;
 	
@@ -386,7 +395,9 @@ static void IMU_GyroscopeCalibration(void) {
 	printf("  x: %d, y: %d, z: %d\n", IMU.gyro_x_bias, IMU.gyro_y_bias, IMU.gyro_z_bias);
 	#endif
 }
+*/
 
+/* DEPRECATED
 static void IMU_AccelerometerCalibration(void) {
 	uint32_t accel_x_sum=0, accel_y_sum=0, accel_z_sum=0;
 	
@@ -418,10 +429,128 @@ static void IMU_AccelerometerCalibration(void) {
 	printf("  x: %d, y: %d, z: %d\n", IMU.accel_x_bias, IMU.accel_y_bias, IMU.accel_z_bias);
 	#endif
 }
+*/
 
+/* DEPRECATED
 void IMU_Calibration(void) {
 	IMU_GyroscopeCalibration();
 	IMU_AccelerometerCalibration();
+}
+*/
+
+#define CALIBRATION_SAMPLES	128
+#define CALIBRATION_SAMPLES_LOG	7
+void IMU_Calibration(void) {
+	uint8_t res;
+	IMUCalibrateRequest calib_req_pkt;
+	INIT_PACKET(calib_req_pkt, IMU_CALIBRATE_REQ_ID);
+	
+	int32_t gyro_x_sum[IMU_N_POS]={}, gyro_y_sum[IMU_N_POS]={}, gyro_z_sum[IMU_N_POS]={};
+	int32_t accel_x_sum[IMU_N_POS]={}, accel_y_sum[IMU_N_POS]={}, accel_z_sum[IMU_N_POS]={};
+	
+	//note gravitational_acceleration is equal to an acceleration of 9.81 m/s^2 = 1G
+		//and so equal to accel_sensitivity
+	//int16_t gravitational_acceleration = (uint16_t)(1<<15) / (uint16_t)2;
+	//int16_t g_comp_x_axis=0, g_comp_y_axis=0, g_comp_z_axis=0;
+	
+	uint8_t p, i, orientation;
+	
+	for(p=0; p < IMU_N_POS; p++) {
+		//wait for new orientation
+		while(1) {
+			//controlla se sono arrivati pacchetti
+			if( UART_check_packet() ) {
+				UART_receive_packet((PacketHeader*)&calib_req_pkt);
+				break;
+			}
+			_delay_ms(1);
+		}
+		orientation = calib_req_pkt.imu_orientation;
+			
+		//get samples
+		for(i=0; i<CALIBRATION_SAMPLES; i++) {
+			//waits for gyroscope data to be valid
+			while(IMU.accel_raw_flag == INVALID)
+				_delay_ms(1);
+	
+	
+			gyro_x_sum[orientation] += IMU.gyro_raw_x;
+			gyro_y_sum[orientation] += IMU.gyro_raw_y;
+			gyro_z_sum[orientation] += IMU.gyro_raw_z;
+			
+			accel_x_sum[orientation] += IMU.accel_raw_x;
+			accel_y_sum[orientation] += IMU.accel_raw_y;
+			accel_z_sum[orientation] += IMU.accel_raw_z;
+		}
+
+		gyro_x_sum[orientation] >>= CALIBRATION_SAMPLES_LOG;
+		gyro_y_sum[orientation] >>= CALIBRATION_SAMPLES_LOG;
+		gyro_z_sum[orientation] >>= CALIBRATION_SAMPLES_LOG;
+
+		accel_x_sum[orientation] >>= CALIBRATION_SAMPLES_LOG;
+		accel_y_sum[orientation] >>= CALIBRATION_SAMPLES_LOG;
+		accel_z_sum[orientation] >>= CALIBRATION_SAMPLES_LOG;
+		
+		UART_send_packet((PacketHeader*)&calib_req_pkt);
+	}
+	
+	// GYROSCOPE
+	int32_t gyro_total_x_sum=0, gyro_total_y_sum=0, gyro_total_z_sum=0;
+	for(p=0; p<6; p++) {
+		gyro_total_x_sum += gyro_x_sum[p];
+		gyro_total_y_sum += gyro_y_sum[p];
+		gyro_total_z_sum += gyro_z_sum[p];
+	}
+	
+	//ACCELEROMETER
+	#ifdef DEBUG_IMU_CALIB
+	for(p=0; p<6; p++) {
+		IMU.imu_config_values.ac_x[p] = accel_x_sum[p];
+		IMU.imu_config_values.ac_y[p] = accel_y_sum[p];
+		IMU.imu_config_values.ac_z[p] = accel_z_sum[p];
+	}
+	#endif
+	
+	//asse X
+	int32_t accel_x_bias_sum = accel_x_sum[IMU_POS_Z_UP]+accel_x_sum[IMU_POS_Y_UP]+accel_x_sum[IMU_POS_Z_DOWN]+accel_x_sum[IMU_POS_Y_DOWN];
+	int32_t accel_x_scale_sum = accel_x_sum[IMU_POS_X_UP]-accel_x_sum[IMU_POS_X_DOWN];
+	
+	//asse Y
+	int32_t accel_y_bias_sum = accel_y_sum[IMU_POS_Z_UP]+accel_y_sum[IMU_POS_X_UP]+accel_y_sum[IMU_POS_Z_DOWN]+accel_y_sum[IMU_POS_X_DOWN];
+	int32_t accel_y_scale_sum = accel_y_sum[IMU_POS_Y_UP]-accel_y_sum[IMU_POS_Y_DOWN];
+	
+	//asse Z
+	int32_t accel_z_bias_sum = accel_z_sum[IMU_POS_X_UP]+accel_z_sum[IMU_POS_Y_UP]+accel_z_sum[IMU_POS_X_DOWN]+accel_z_sum[IMU_POS_Y_DOWN];
+	int32_t accel_z_scale_sum = accel_z_sum[IMU_POS_Z_UP]-accel_z_sum[IMU_POS_Z_DOWN];
+	
+	float gyro_sensitivity = (float)((uint16_t)(1<<15) / 250.);
+	//float accel_sensitivity = (float)((uint16_t)(1<<15) / 2.);
+	
+	IMU.imu_config_values.gyro_x_bias = (int16_t)(gyro_total_x_sum / 6);
+	IMU.imu_config_values.gyro_y_bias = (int16_t)(gyro_total_y_sum / 6);
+	IMU.imu_config_values.gyro_z_bias = (int16_t)(gyro_total_z_sum / 6);
+
+	IMU.imu_config_values.gyro_x_scale = gyro_sensitivity;
+	IMU.imu_config_values.gyro_y_scale = gyro_sensitivity;
+	IMU.imu_config_values.gyro_z_scale = gyro_sensitivity;
+
+	IMU.imu_config_values.accel_x_bias = (int16_t)(accel_x_bias_sum >> 2);
+	IMU.imu_config_values.accel_y_bias = (int16_t)(accel_y_bias_sum >> 2);
+	IMU.imu_config_values.accel_z_bias = (int16_t)(accel_z_bias_sum >> 2);
+	
+	// I must not keep track of bias calculating the scale
+		//because I'm subtracting two accel_x_sum values ( one positive, one negative )
+			//accel_x_scale_sum = accel_x_sum[IMU_POS_X_UP] - accel_x_sum[IMU_POS_X_DOWN];
+		//if I kept track of the bias it would have been:
+			//accel_x_scale_sum = (accel_x_sum[IMU_POS_X_UP] - BIAS) - (accel_x_sum[IMU_POS_X_DOWN] - BIAS) = 
+				// accel_x_sum[IMU_POS_X_UP] - BIAS - accel_x_sum[IMU_POS_X_DOWN] + BIAS
+			//and the two biases goes away		
+	IMU.imu_config_values.accel_x_scale = (float)(accel_x_scale_sum >> 1);
+	IMU.imu_config_values.accel_y_scale = (float)(accel_y_scale_sum >> 1);
+	IMU.imu_config_values.accel_z_scale = (float)(accel_z_scale_sum >> 1);
+	
+	//save new calibration values
+	EEPROM_write(IMU_CALIBRATION_ADDRESS, &IMU.imu_config_values, sizeof(IMUConfigurationPacket));
 }
 
 void IMU_getCalibrationData(IMUConfigurationPacket* config_pkt) {
@@ -441,6 +570,13 @@ uint8_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt) {
 	return IMU.magnet_raw_flag;
 }
 
+uint8_t IMU_sendCalibrationDataToHost(void) {
+	uint8_t res, ret = 0;
+	res = UART_send_packet((PacketHeader*)&IMU.imu_config_values);
+	if(res > 0)
+		ret++;
+	return ret;
+}
 
 uint8_t IMU_sendIMUDataToHost(void) {
 	uint8_t res, ret = 0;

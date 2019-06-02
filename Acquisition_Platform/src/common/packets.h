@@ -12,7 +12,7 @@
     var.header.seq=0;							\
   }																\
 
-#define PACKET_MAX_ID 16	//TODO check
+#define PACKET_MAX_ID 32	//TODO check
 
 #define MIN_SIZE(t1,t2) ((t1<t2) ? t1 : t2)
 #define MAX_SIZE(t1,t2) ((t1>t2) ? t1 : t2)
@@ -21,18 +21,21 @@
 													MAX_SIZE(sizeof(SystemStatusPacket),\
 													MIN_SIZE(sizeof(EncoderPacket),\
 													MAX_SIZE(sizeof(OdometryPacket),\
+													MIN_SIZE(sizeof(IMUCalibrateRequest),\
 													MIN_SIZE(sizeof(IMUConfigurationPacket),\
 													MIN_SIZE(sizeof(AccelerometerPacket),\
 													MIN_SIZE(sizeof(GyroscopePacket),\
-													MIN_SIZE(sizeof(MagnetometerPacket),sizeof(IMUOdometryPacket))))))))))
+													MIN_SIZE(sizeof(MagnetometerPacket),sizeof(IMUOdometryPacket)))))))))))
 #define PACKET_MAX_SIZE (MAX_SIZE(sizeof(EchoPacket),\
 													MAX_SIZE(sizeof(SystemStatusPacket),\
 													MAX_SIZE(sizeof(EncoderPacket),\
 													MAX_SIZE(sizeof(OdometryPacket),\
+													MAX_SIZE(sizeof(IMUCalibrateRequest),\
 													MAX_SIZE(sizeof(IMUConfigurationPacket),\
 													MAX_SIZE(sizeof(AccelerometerPacket),\
 													MAX_SIZE(sizeof(GyroscopePacket),\
-													MAX_SIZE(sizeof(MagnetometerPacket),sizeof(IMUOdometryPacket))))))))))
+													MAX_SIZE(sizeof(MagnetometerPacket),sizeof(IMUOdometryPacket)))))))))))
+
 
 #pragma pack(push, 1)
 
@@ -82,8 +85,27 @@ typedef struct {
 } OdometryPacket;
 #define ODOMETRY_PACKET_ID 3
 
+//packet sent from host to controller
+//informing it of which direction imu is now in order to calibrate
+//multi position calibration
+#define IMU_NO_CALIB -2
+#define IMU_CALIB_START -1
+#define IMU_POS_Z_UP 0 // z-axis upward
+#define IMU_POS_X_UP 1 // x-axis upward
+#define IMU_POS_Y_UP 2 // y-axis upward
+#define IMU_POS_Z_DOWN 3 // z-axis downward
+#define IMU_POS_X_DOWN 4 // x-axis downward
+#define IMU_POS_Y_DOWN 5 // y-axis downward
+#define IMU_N_POS 6 //max number if positions (including start)
 typedef struct {
   PacketHeader header;
+	int8_t imu_orientation;
+} IMUCalibrateRequest;
+#define IMU_CALIBRATE_REQ_ID 4
+
+typedef struct {
+  PacketHeader header;
+  //BIASES
 	int16_t gyro_x_bias;		//gyroscope
 	int16_t gyro_y_bias;
 	int16_t gyro_z_bias;
@@ -91,8 +113,23 @@ typedef struct {
 	int16_t accel_x_bias;		//accelerometer
 	int16_t accel_y_bias;
 	int16_t accel_z_bias;
+	
+	//SCALE FACTORS	
+	float gyro_x_scale;		//gyroscope
+	float gyro_y_scale;
+	float gyro_z_scale;
+	
+	float accel_x_scale;		//accelerometer
+	float accel_y_scale;
+	float accel_z_scale;
+	
+	#ifdef DEBUG_IMU_CALIB
+	int32_t ac_x[IMU_N_POS];
+	int32_t ac_y[IMU_N_POS];
+	int32_t ac_z[IMU_N_POS];
+	#endif
 } IMUConfigurationPacket;
-#define IMU_CONFIG_PACKET_ID 4
+#define IMU_CONFIG_PACKET_ID 5
 
 
 //NOTE: according to
@@ -108,7 +145,7 @@ typedef struct {
 	float accel_y;		// [ note: G-forces -> a single G-force for us here on planet Earth is equivalent to 9.8 m/s^2 ]
 	float accel_z;
 } AccelerometerPacket;
-#define ACCELEROMETER_PACKET_ID 5
+#define ACCELEROMETER_PACKET_ID 6
 
 typedef struct {
   PacketHeader header;
@@ -116,7 +153,7 @@ typedef struct {
 	float gyro_y;		//data measured in DPS
 	float gyro_z;			// [ note: DPS, Degrees Per Second ]
 } GyroscopePacket;
-#define GYROSCOPE_PACKET_ID 6
+#define GYROSCOPE_PACKET_ID 7
 
 typedef struct {
   PacketHeader header;
@@ -124,7 +161,7 @@ typedef struct {
 	float magnet_y;
 	float magnet_z;
 } MagnetometerPacket;
-#define MAGNETOMETER_PACKET_ID 7
+#define MAGNETOMETER_PACKET_ID 8
 
 typedef struct {
   PacketHeader header;
@@ -157,6 +194,6 @@ typedef struct {
 	uint16_t total_time_neg_accel_y;
 	uint16_t curr_time_zero_accel_y;
 } IMUOdometryPacket;
-#define IMU_ODOMETRY_PACKET_ID 8
+#define IMU_ODOMETRY_PACKET_ID 9
 
 #pragma pack(pop)

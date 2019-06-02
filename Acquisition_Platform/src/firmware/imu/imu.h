@@ -55,6 +55,13 @@
 
 #define VALID 1
 #define INVALID 0
+
+#define IMU_CALIBRATION_ADDRESS_DETATCHED 0x20
+#define IMU_CALIBRATION_ADDRESS_ON_PLATFORM 0x60
+#define IMU_CALIBRATION_ADDRESS_3 0x100
+#define IMU_CALIBRATION_ADDRESS_DETATCHED_2 0x140
+#define IMU_CALIBRATION_ADDRESS IMU_CALIBRATION_ADDRESS_3
+
 typedef struct IMU_t {
 	//sequence increased at each timer interrupt occured
 	uint16_t imu_time_seq;
@@ -136,6 +143,12 @@ uint8_t IMU_getGyroscope(GyroscopePacket* gyro_pkt);
 uint8_t IMU_getMagnetometer(MagnetometerPacket* magnet_pkt);
 //uint16_t IMU_getTermometer(int16_t* temp);
 
+/*
+ * IMU_sendIMUDataToHost
+ *	sends Accelerometer, Gyroscope calibration data packet
+ *	@returns: >0 if ok, 0 if error
+ */
+uint8_t IMU_sendCalibrationDataToHost(void);
 /*
  * IMU_sendIMUDataToHost
  *	sends Accelerometer, Gyroscope, Magnetometer packets

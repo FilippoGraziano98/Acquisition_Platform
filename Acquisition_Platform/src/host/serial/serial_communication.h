@@ -92,6 +92,8 @@ int Host_Serial_registerPacketHandler(PacketType packet_type, PacketOpFunctionTy
  */
 int Host_Serial_receivePacket(PacketHeader* pkt);
 
+void Host_Serial_Print_Debug_Info(void);
+
 /*
  * Host_Serial_init:
  * 	destroys semaphores

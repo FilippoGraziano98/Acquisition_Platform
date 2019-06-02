@@ -44,6 +44,12 @@ int Host_init(const char* device);
  * 	sends a few (cycles) EchoPacket testing serial connection
  */
 int Host_checkConnection(int cycles);
+/*
+ * Host_handle_IMU_Calibration :
+ * 	if @param calibrate_flag set : calibration cycles will proceed
+ *	else : calibration will be loaded from eeprom
+ */
+int Host_handle_IMU_Calibration(uint8_t calibrate_flag);
 
 /*
  * Host_get<...>Data :

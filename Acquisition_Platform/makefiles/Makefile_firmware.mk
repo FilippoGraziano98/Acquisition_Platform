@@ -25,8 +25,8 @@ AVRDUDE_FLAGS += -c wiring
 
 
 
-HEADERS = uart.h i2c.h i2c_communication.h uart_packets.h packet_handler.h encoder.h encoder_odometry.h imu.h imu_odometry.h
-OBJS = uart.o i2c.o i2c_communication.o uart_packets.o packet_handler.o encoder.o encoder_odometry.o imu.o imu_odometry.o
+HEADERS = uart.h i2c.h eeprom.h i2c_communication.h uart_packets.h packet_handler.h encoder.h encoder_odometry.h imu.h imu_odometry.h
+OBJS = uart.o i2c.o eeprom.o i2c_communication.o uart_packets.o packet_handler.o encoder.o encoder_odometry.o imu.o imu_odometry.o
 
 BINS = main.elf
 FIRMWARE = main.hex

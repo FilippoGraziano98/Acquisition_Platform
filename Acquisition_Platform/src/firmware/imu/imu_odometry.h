@@ -17,9 +17,10 @@
 
 #define IMU_ANG_VEL_THRESHOLD 0.4 //DPS
 #define IMU_TRASL_ACC_THRESHOLD 0.05 //G-Forces
-#define G_FORCE_ACCEL 9.8 //accel[m/s^2] = accel[G-Force]*9.8
+#define G_FORCE_ACCEL_G 1 //g[G] = 1
+#define G_FORCE_ACCEL_M_S2 9.8 //accel[m/s^2] = accel[G-Force]*9.8
 
-#define STOP_BRAKING_TRESHOLD 2
+#define STOP_BREAKING_TRESHOLD 2
 #define STOP_ZERO_ACCEL_OUTLIER_FILTER 5
 
 typedef struct IMU_OdometryController_t{
