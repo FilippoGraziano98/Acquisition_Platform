@@ -355,6 +355,8 @@ static float status_x_log[8192] = {0.};
 #endif
 
 void KalmanFilter_OdometryUpdate(SensorsPacket* sens_obs) {
+	KF_odom.kf_time_seq = sens_obs->header.seq;	
+	
 	KalmanFilter_TransitionModel();
 	
 	float obs[KF_OBSERVATION_LEN];
@@ -391,6 +393,26 @@ void KalmanFilter_OdometryUpdate(SensorsPacket* sens_obs) {
 	status_x_log[enc_log_idx] = KF_odom.status_mean[KF_ODOM_X];
 	enc_log_idx++;
 	#endif
+}
+
+
+void KalmanFilter_getOdometry(KFOdometryPacket* odom) {
+	memset(odom, 0, sizeof(KFOdometryPacket));
+	
+	INIT_PACKET((*odom), KF_ODOMETRY_PACKET_ID);
+	
+	odom->header.seq = KF_odom.kf_time_seq;
+	
+	odom->kf_odom_x = KF_odom.status_mean[KF_ODOM_X];
+	odom->kf_trans_vel_x = KF_odom.status_mean[KF_TRANS_VEL_X];
+	odom->kf_trans_accl_x = KF_odom.status_mean[KF_TRANS_ACCL_X];
+	
+	odom->kf_odom_y = KF_odom.status_mean[KF_ODOM_Y];
+	odom->kf_trans_vel_y = KF_odom.status_mean[KF_TRANS_VEL_Y];
+	odom->kf_trans_accl_y = KF_odom.status_mean[KF_TRANS_ACCL_Y];
+	
+	odom->kf_odom_theta = KF_odom.status_mean[KF_ODOM_THETA];
+	odom->kf_rot_vel_z = KF_odom.status_mean[KF_ROT_VEL_Z];
 }
 
 void KalmanFilter_OdometryPrint(void){

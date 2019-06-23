@@ -4,10 +4,10 @@ project(Acquisition_Platform)
 find_package(catkin REQUIRED)
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=gnu++11 -march=native -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=gnu++11 -march=native -Wall -lm")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/Vars.cmake)
-add_definitions(${DEBUG_OPTS} ${SENSORS} ${COMMON_VARS})
+add_definitions(${DEBUG_OPTS} ${SENSORS} ${ODOM} ${COMMON_VARS})
 
 find_package(Threads REQUIRED)
 
@@ -24,10 +24,14 @@ include_directories(
 	src/host
 )
 
+message("vars : ${DEBUG_OPTS} ${SENSORS} ${ODOM} ${COMMON_VARS}")
+
 ## Declare a C++ library
 add_library(acq_pl_library SHARED
 	src/host/serial/serial.c
 	src/host/serial/serial_communication.c
+	src/host/kalman_filter/matrix.c
+	src/host/kalman_filter/kalman_filter.c
 	src/host/host.c
 #	src/host/main.c
 )
@@ -39,4 +43,5 @@ add_executable(acq_pl
 target_link_libraries(acq_pl
 	acq_pl_library
 	${CMAKE_THREAD_LIBS_INIT}
+	m	#Math Library
 )

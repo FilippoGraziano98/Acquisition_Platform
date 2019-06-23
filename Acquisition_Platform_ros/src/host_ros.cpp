@@ -5,6 +5,8 @@ Host_ros::Host_ros(ros::NodeHandle& nh_) : _nh(nh_){
 	_odom_topic = "";
 	_imu_odom_frame_id = "";
 	_imu_odom_topic = "";
+	_kf_odom_frame_id = "";
+	_kf_odom_topic = "";
 }
 
 Host_ros::~Host_ros(){
@@ -47,7 +49,25 @@ void Host_ros::imu_odom_publish(IMUOdometryPacket* imu_odom_data) {
 }
 
 
+void Host_ros::kf_odom_publish(KFOdometryPacket* kf_odom_data) {
+	nav_msgs::Odometry kf_odom_msg = {};
+		
+	kf_odom_msg.header.seq = kf_odom_data->header.seq;
+	kf_odom_msg.header.stamp = ros::Time::now();
+	kf_odom_msg.header.frame_id = _kf_odom_frame_id;
+	
+	kf_odom_msg.pose.pose.position.x = kf_odom_data->kf_odom_x*SCALE_FACTOR;
+	kf_odom_msg.pose.pose.position.y = kf_odom_data->kf_odom_y*SCALE_FACTOR;
+	kf_odom_msg.pose.pose.position.z = 0;
+	
+	kf_odom_msg.pose.pose.orientation = tf::createQuaternionMsgFromYaw(kf_odom_data->kf_odom_theta);
+	
+	_kf_odom_pub.publish(kf_odom_msg);
+}
+
+
 void Host_ros::advertise(){
 	_odom_pub = _nh.advertise<nav_msgs::Odometry>(_odom_topic, 10);
 	_imu_odom_pub = _nh.advertise<nav_msgs::Odometry>(_imu_odom_topic, 10);
+	_kf_odom_pub = _nh.advertise<nav_msgs::Odometry>(_kf_odom_topic, 10);
 }

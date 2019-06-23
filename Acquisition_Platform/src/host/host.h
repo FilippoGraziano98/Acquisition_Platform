@@ -71,6 +71,7 @@ int Host_getIMUConfiguration(void);
  */
 void Host_getOdometryData(OdometryPacket* odom);
 void Host_getIMUOdometryData(IMUOdometryPacket* odom);
+void Host_getKFOdometryData(KFOdometryPacket* odom);
 
 /*
  * Host_print<...>Data :

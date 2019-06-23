@@ -36,8 +36,6 @@
 
 #if KF_VERSION==0
 
-	#define KF_OBSERVATION_LEN 5
-
 	#define KF_OBS_ENC_LEFT 0
 	#define KF_OBS_ENC_RIGHT 1
 	
@@ -96,6 +94,8 @@ typedef struct KalmanFilter_Odometry_t {
 void KalmanFilter_OdometryInit(void);
 
 void KalmanFilter_OdometryUpdate(SensorsPacket* sens_obs);
+
+void KalmanFilter_getOdometry(KFOdometryPacket* odom);
 
 void KalmanFilter_OdometryPrint(void);
 

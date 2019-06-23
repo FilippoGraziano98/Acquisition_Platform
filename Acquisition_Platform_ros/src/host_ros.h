@@ -27,8 +27,16 @@ class Host_ros{
 			_imu_odom_topic = imu_odom_topic_;
 		}
 		
+		inline void setKFOdomFrameId(const std::string& kf_odom_frame_id_) {
+			_kf_odom_frame_id = kf_odom_frame_id_;
+		}
+		inline void setKFOdomTopic(const std::string& kf_odom_topic_){
+			_kf_odom_topic = kf_odom_topic_;
+		}
+		
 		void odom_publish(OdometryPacket* odom_data);
 		void imu_odom_publish(IMUOdometryPacket* imu_odom_data);
+		void kf_odom_publish(KFOdometryPacket* kf_odom_data);
 		void advertise();
 	
 	protected:
@@ -38,7 +46,11 @@ class Host_ros{
 		std::string _imu_odom_frame_id;
 		std::string _imu_odom_topic;
 		
+		std::string _kf_odom_frame_id;
+		std::string _kf_odom_topic;
+		
 		ros::NodeHandle& _nh;
 		ros::Publisher _odom_pub;
 		ros::Publisher _imu_odom_pub;
+		ros::Publisher _kf_odom_pub;
 };

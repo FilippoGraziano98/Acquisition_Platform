@@ -5,7 +5,7 @@ project(Acquisition_Platform_ros)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=gnu++11 -march=native")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/Vars.cmake)
-add_definitions(${DEBUG_OPTS} ${SENSORS} ${COMMON_VARS})
+add_definitions(${DEBUG_OPTS} ${SENSORS} ${ODOM} ${COMMON_VARS})
 
 find_package(catkin REQUIRED COMPONENTS
 	sensor_msgs
@@ -43,5 +43,6 @@ add_executable(acq_pl_node
 target_link_libraries(acq_pl_node
 	${Acquisition_Platform_LIBRARIES}
 	${CMAKE_THREAD_LIBS_INIT}
+	m	#Math Library
 	${catkin_LIBRARIES}
 )

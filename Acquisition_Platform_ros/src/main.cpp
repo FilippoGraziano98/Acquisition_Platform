@@ -9,6 +9,7 @@
 #include "serial/serial.h"
 #include "packets.h"
 
+#include "kalman_filter/kalman_filter.h"
 #include "host.h"
 
 #include "host_ros.h"
@@ -70,6 +71,8 @@ int main(int argc, char** argv) {
 	host_ros.setOdomTopic("/odom");
 	host_ros.setIMUOdomFrameId("/imu_odom");
 	host_ros.setIMUOdomTopic("/imu_odom");
+	host_ros.setKFOdomFrameId("/kf_odom");
+	host_ros.setKFOdomTopic("/kf_odom");
 	host_ros.advertise();
 	
 	ros::Rate loop_rate(10); //10 Hz
@@ -78,6 +81,8 @@ int main(int argc, char** argv) {
 	
 	OdometryPacket odom_data = {};
 	IMUOdometryPacket imu_odom_data = {};
+	
+	KFOdometryPacket kf_odom_data = {};
 	
 	
 	#ifdef DEBUG_PRINTF
@@ -104,50 +109,55 @@ int main(int argc, char** argv) {
 		goto EXIT;
 	}
 	
-	#ifdef IMU
-	printf("IMU\n");
-	#else
-	printf("no IMU\n");
-	#endif
-	#ifdef ENCS
+	#ifdef USE_ENCS
 	printf("ENCS\n");
 	#else
 	printf("no ENCS\n");
 	#endif
+	#ifdef USE_IMU
+	printf("IMU\n");
+	#else
+	printf("no IMU\n");
+	#endif
 	
-	#ifdef IMU
+	#ifdef USE_IMU
 	//calibration
 	Host_handle_IMU_Calibration(calibration_flag);
 	Host_printIMUConfiguration();
 	#endif
 	
 	while(ros::ok()) {
-		#ifdef ENCS
+		#ifdef ODOM_ENCS
 		Host_getOdometryData(&odom_data);
 				
 		host_ros.odom_publish(&odom_data);
 		#endif
 		
-		#ifdef IMU
+		#ifdef ODOM_IMU
 		Host_getIMUOdometryData(&imu_odom_data);
 		
 		host_ros.imu_odom_publish(&imu_odom_data);
 		#endif
 		
+		Host_getKFOdometryData(&kf_odom_data);
+		host_ros.kf_odom_publish(&kf_odom_data);
+		
 		if( i % 10 == 0) {
-		
-			//Host_printOdometryData();
-			printf("%d)[enc] pos : x: %f, y: %f, z: %f\n", odom_data.header.seq, odom_data.odom_x, odom_data.odom_y, 0.);
-		
+			#ifdef ODOM_ENCS
+			Host_printOdometryData();
+			//printf("%d)[enc] pos : x: %f, y: %f, z: %f\n", odom_data.header.seq, odom_data.odom_x, odom_data.odom_y, 0.);
+			#endif
+			
+			#ifdef ODOM_IMU
 			//Host_printIMUData();
-			//printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", imu_odom_data.header.seq, imu_odom_data.imu_yaw, imu_odom_data.imu_pitch, imu_odom_data.imu_roll);
-		
-			//printf("%d) accel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_acceleration_x_axis, imu_odom_data.translational_acceleration_y_axis, imu_odom_data.translational_acceleration_z_axis);
-			printf("%d)[imu] pos : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.imu_odom_x, imu_odom_data.imu_odom_y, imu_odom_data.imu_odom_z);
-			printf("%d)[imu] vel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_velocity_x_axis, imu_odom_data.translational_velocity_y_axis, imu_odom_data.translational_velocity_z_axis);
-			printf("%d)[imu] accel X : pos: %d, neg: %d, zero: %d\n", imu_odom_data.header.seq, imu_odom_data.total_time_pos_accel_x, imu_odom_data.total_time_neg_accel_x, imu_odom_data.curr_time_zero_accel_x);
-			printf("%d)[imu] accel Y : pos: %d, neg: %d, zero: %d\n", imu_odom_data.header.seq, imu_odom_data.total_time_pos_accel_y, imu_odom_data.total_time_neg_accel_y, imu_odom_data.curr_time_zero_accel_y);
-			printf("\n");
+			//printf("%d)[imu] pos : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.imu_odom_x, imu_odom_data.imu_odom_y, imu_odom_data.imu_odom_z);
+//			printf("%d)[imu] vel : x: %f, y: %f, z: %f\n", imu_odom_data.header.seq, imu_odom_data.translational_velocity_x_axis, imu_odom_data.translational_velocity_y_axis, imu_odom_data.translational_velocity_z_axis);
+//			printf("%d)[imu] accel X : pos: %d, neg: %d, zero: %d\n", imu_odom_data.header.seq, imu_odom_data.total_time_pos_accel_x, imu_odom_data.total_time_neg_accel_x, imu_odom_data.curr_time_zero_accel_x);
+//			printf("%d)[imu] accel Y : pos: %d, neg: %d, zero: %d\n", imu_odom_data.header.seq, imu_odom_data.total_time_pos_accel_y, imu_odom_data.total_time_neg_accel_y, imu_odom_data.curr_time_zero_accel_y);
+			Host_printIMUOdometryData();
+			#endif
+						
+			KalmanFilter_OdometryPrint();
 
 			i -= 10;
 		}

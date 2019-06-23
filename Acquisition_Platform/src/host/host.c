@@ -387,6 +387,9 @@ void Host_getIMUOdometryData(IMUOdometryPacket* imu_odom) {
 	memcpy(imu_odom, &(Global_Host.imu_odom_packet), sizeof(IMUOdometryPacket));
 }
 
+void Host_getKFOdometryData(KFOdometryPacket* odom) {
+	KalmanFilter_getOdometry(odom);
+}
 
 
 void Host_printEncoderData() {

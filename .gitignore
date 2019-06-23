@@ -2,6 +2,7 @@ docs/*
 imgs/*
 thesis/*
 README.txt
+!Acquisition_Platform/src/host/kalman_filter/README.txt
 *.o
 *.elf
 *.hex

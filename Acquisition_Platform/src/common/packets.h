@@ -26,7 +26,8 @@
 													MIN_SIZE(sizeof(AccelerometerPacket),\
 													MIN_SIZE(sizeof(GyroscopePacket),\
 													MIN_SIZE(sizeof(MagnetometerPacket),\
-													MIN_SIZE(sizeof(IMUOdometryPacket),sizeof(SensorsPacket))))))))))))
+													MIN_SIZE(sizeof(IMUOdometryPacket),\
+													MIN_SIZE(sizeof(SensorsPacket),sizeof(KFOdometryPacket)))))))))))))
 #define PACKET_MAX_SIZE (MAX_SIZE(sizeof(EchoPacket),\
 													MAX_SIZE(sizeof(SystemStatusPacket),\
 													MAX_SIZE(sizeof(EncoderPacket),\
@@ -36,7 +37,8 @@
 													MAX_SIZE(sizeof(AccelerometerPacket),\
 													MAX_SIZE(sizeof(GyroscopePacket),\
 													MAX_SIZE(sizeof(MagnetometerPacket),\
-													MAX_SIZE(sizeof(IMUOdometryPacket),sizeof(SensorsPacket))))))))))))
+													MAX_SIZE(sizeof(IMUOdometryPacket),\
+													MAX_SIZE(sizeof(SensorsPacket),sizeof(KFOdometryPacket)))))))))))))
 
 
 #pragma pack(push, 1)
@@ -219,5 +221,23 @@ typedef struct {
 	
 } SensorsPacket;
 #define SENSORS_PACKET_ID 10
+
+//since KF is host_side, this packet is not used for firmware-host communication
+typedef struct {
+  PacketHeader header;
+	
+	float kf_odom_x;
+	float kf_trans_vel_x;
+	float kf_trans_accl_x;
+	
+	float kf_odom_y;
+	float kf_trans_vel_y;
+	float kf_trans_accl_y;
+	
+	float kf_odom_theta;
+	float kf_rot_vel_z;
+	
+} KFOdometryPacket;
+#define KF_ODOMETRY_PACKET_ID 11
 
 #pragma pack(pop)
