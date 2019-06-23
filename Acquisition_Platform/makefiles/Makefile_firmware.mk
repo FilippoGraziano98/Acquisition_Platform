@@ -5,7 +5,7 @@ SRCDIR = ../src/firmware
 INCLUDE_DIRS=-I../src/common -I$(SRCDIR)
 
 
-CC_OPTS=-Wall --std=gnu99 -DF_CPU=16000000UL -O3 -funsigned-char -funsigned-bitfields  -fshort-enums -Wall -Wstrict-prototypes -mmcu=atmega2560 $(INCLUDE_DIRS)  -D__AVR_3_BYTE_PC__ $(DEBUG_OPTS) $(SENSORS) $(COMMON_VARS)
+CC_OPTS=-Wall --std=gnu99 -DF_CPU=16000000UL -O3 -funsigned-char -funsigned-bitfields  -fshort-enums -Wall -Wstrict-prototypes -mmcu=atmega2560 $(INCLUDE_DIRS)  -D__AVR_3_BYTE_PC__ $(DEBUG_OPTS) $(SENSORS) $(ODOM) $(COMMON_VARS)
 AS_OPTS=-x assembler-with-cpp $(CC_OPTS)
 
 AVRDUDE = avrdude
@@ -25,8 +25,8 @@ AVRDUDE_FLAGS += -c wiring
 
 
 
-HEADERS = uart.h i2c.h eeprom.h i2c_communication.h uart_packets.h packet_handler.h encoder.h encoder_odometry.h imu.h imu_odometry.h
-OBJS = uart.o i2c.o eeprom.o i2c_communication.o uart_packets.o packet_handler.o encoder.o encoder_odometry.o imu.o imu_odometry.o
+HEADERS = uart.h i2c.h eeprom.h i2c_communication.h uart_packets.h packet_handler.h encoder.h encoder_odometry.h imu.h imu_odometry.h acquisition_platform.h #kalman_filter.h
+OBJS = uart.o i2c.o eeprom.o i2c_communication.o uart_packets.o packet_handler.o encoder.o encoder_odometry.o imu.o imu_odometry.o acquisition_platform.o #kalman_filter.o
 
 BINS = main.elf
 FIRMWARE = main.hex
@@ -49,6 +49,9 @@ all: $(BINS) $(FIRMWARE)
 	$(CC) $(CC_OPTS) -c  -o $@ $<
 	
 %.o: $(SRCDIR)/imu/%.c
+	$(CC) $(CC_OPTS) -c  -o $@ $<
+	
+%.o: $(SRCDIR)/kalman_filter/%.c
 	$(CC) $(CC_OPTS) -c  -o $@ $<
 	
 %.elf: %.o $(OBJS)

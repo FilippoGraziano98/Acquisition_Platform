@@ -30,6 +30,8 @@ typedef struct Host_t {
   MagnetometerPacket magnetometer_packet;
   
   IMUOdometryPacket imu_odom_packet;
+  
+  SensorsPacket sensors_packet;
 } Host_t;
 
 /*
@@ -79,6 +81,7 @@ void Host_printOdometryData(void);
 void Host_printIMUConfiguration(void);
 void Host_printIMUData(void);
 void Host_printIMUOdometryData(void);
+void Host_printSensorsData(void);
 
 /*
  * Host_destroy :

@@ -1,5 +1,6 @@
 docs/*
 imgs/*
+thesis/*
 README.txt
 *.o
 *.elf
@@ -8,6 +9,7 @@ README.txt
 *_old.c
 *_old.h
 _*
+Acquisition_Platform/src/firmware/kalman_filter
 Acquisition_Platform/host_build/*
 !Acquisition_Platform/host_build/Makefile
 Acquisition_Platform/firmware_build/*

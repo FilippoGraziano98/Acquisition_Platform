@@ -8,6 +8,8 @@
 #include "serial/serial.h"
 #include "serial/serial_communication.h"
 
+#include "kalman_filter/kalman_filter.h"
+
 #include "../firmware/firmware_constants.h"
 
 #define SERIAL_SPEED 57600
@@ -24,6 +26,7 @@ static void Host_saveAccelerometerPkt(PacketHeader* pkt);
 static void Host_saveGyroscopePkt(PacketHeader* pkt);
 static void Host_saveMagnetometerPkt(PacketHeader* pkt);
 static void Host_saveIMUOdometryPkt(PacketHeader* pkt);
+static void Host_saveSensorPkt_callKF(PacketHeader* pkt);//TODO
 
 
 int Host_init(const char* device) {
@@ -47,6 +50,10 @@ int Host_init(const char* device) {
 	
 	Global_Host.global_seq = 0;
 	
+	
+	KalmanFilter_OdometryInit();
+	
+	
 	//initializes global packets memory
 	INIT_PACKET(Global_Host.encoder_packet, ENCODER_PACKET_ID);
 	INIT_PACKET(Global_Host.odom_packet, ODOMETRY_PACKET_ID);
@@ -55,6 +62,7 @@ int Host_init(const char* device) {
 	INIT_PACKET(Global_Host.gyroscope_packet, GYROSCOPE_PACKET_ID);
 	INIT_PACKET(Global_Host.magnetometer_packet, MAGNETOMETER_PACKET_ID);
 	INIT_PACKET(Global_Host.imu_odom_packet, IMU_ODOMETRY_PACKET_ID);
+	INIT_PACKET(Global_Host.sensors_packet, SENSORS_PACKET_ID);
 	
 	//initialize Host_serial (packets_ interface)
 	Host_Serial_init(Global_Host.serial_fd);
@@ -67,6 +75,7 @@ int Host_init(const char* device) {
 	res |= Host_Serial_registerPacketHandler(GYROSCOPE_PACKET_ID, Host_saveGyroscopePkt);
 	res |= Host_Serial_registerPacketHandler(MAGNETOMETER_PACKET_ID, Host_saveMagnetometerPkt);
 	res |= Host_Serial_registerPacketHandler(IMU_ODOMETRY_PACKET_ID, Host_saveIMUOdometryPkt);
+	res |= Host_Serial_registerPacketHandler(SENSORS_PACKET_ID, Host_saveSensorPkt_callKF);
 	if ( res < 0 ) {
 		printf("[Host_init] Error in Host_Serial_registerPacketHandler\n");
 		return -1;
@@ -170,6 +179,17 @@ static void Host_saveIMUOdometryPkt(PacketHeader* pkt) {
 	}
 	
 	memcpy(&(Global_Host.imu_odom_packet), pkt, sizeof(IMUOdometryPacket));
+}
+
+static void Host_saveSensorPkt_callKF(PacketHeader* pkt) {
+	if( pkt->type != SENSORS_PACKET_ID) {
+		printf("[Host_saveSensorPkt_callKF] Packet Handling CORRUPTED: pkt is not SensorsPacket\n");
+		return;
+	}
+	
+	memcpy(&(Global_Host.sensors_packet), pkt, sizeof(SensorsPacket));
+	
+	KalmanFilter_OdometryUpdate(&(Global_Host.sensors_packet));
 }
 
 /** DEPRECATED
@@ -427,6 +447,16 @@ void Host_printIMUOdometryData() {
 	printf("%d) yaw(z): %f, pitch(y): %f, roll(x): %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.imu_yaw, Global_Host.imu_odom_packet.imu_pitch, Global_Host.imu_odom_packet.imu_roll);
 	printf("%d) rotational velocities: z-axis: %f, y-axis: %f, x-axis: %f\n", Global_Host.imu_odom_packet.header.seq, Global_Host.imu_odom_packet.rotational_velocity_z_axis, Global_Host.imu_odom_packet.rotational_velocity_y_axis, Global_Host.imu_odom_packet.rotational_velocity_x_axis);
 	printf("\n");
+}
+
+void Host_printSensorsData() {
+	printf("SENSORS: seq %d\n", Global_Host.sensors_packet.header.seq);
+	printf("\tIMU: accel_x %f, accel_y %f, vel_theta %f\n", Global_Host.sensors_packet.imu_accel_x, Global_Host.sensors_packet.imu_accel_y, Global_Host.sensors_packet.imu_vel_theta);
+	#if KF_VERSION==0
+	printf("\tENCS: delta_l %f, delta_r %f\n", Global_Host.sensors_packet.delta_l, Global_Host.sensors_packet.delta_r);
+	#elif KF_VERSION==1
+	printf("\tENCS: local_dx %f, local_dy %f, local_dtheta %f\n", Global_Host.sensors_packet.local_dx, Global_Host.sensors_packet.local_dy, Global_Host.sensors_packet.local_dtheta);
+	#endif
 }
 
 int Host_destroy() {

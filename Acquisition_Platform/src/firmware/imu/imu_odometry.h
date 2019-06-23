@@ -13,7 +13,7 @@
 #define M_180 180
 
 //IMU_OdometryUpdate will be called in IMU_AccelGyro_Callback
-#define IMU_ODOMETRY_UPDATE_RATE (IMU_UPDATE_RATE)	//500 Hz
+#define IMU_ODOMETRY_UPDATE_RATE (IMU_UPDATE_RATE)	//100 Hz
 
 #define IMU_ANG_VEL_THRESHOLD 0.4 //DPS
 #define IMU_TRASL_ACC_THRESHOLD 0.05 //G-Forces

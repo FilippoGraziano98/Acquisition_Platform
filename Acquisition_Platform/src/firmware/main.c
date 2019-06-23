@@ -15,13 +15,15 @@
 #include "packets/uart_packets.h"
 #include "packets/packet_handler.h"
 
+#include "acquisition_platform.h"
+
 #include "../common/packets.h"
 
 #ifdef DEBUG_PRINTF
 #include <stdio.h>
 #endif
 
-#define FIRMWARE_COMMUNICATION_RATE 1 //Hz
+#define FIRMWARE_COMMUNICATION_RATE (IMU_UPDATE_RATE) //1 //Hz
 
 // Global Status of the Firmware Controller
 SystemStatusPacket system_status;
@@ -61,42 +63,52 @@ static void Firmware_manageCalibrationPacket(void) {
 	}
 }
 
+static uint8_t cnt_system_log = 0;
+
 ISR(TIMER5_COMPA_vect) {
-	UART_send_packet((PacketHeader*)&(system_status));
-	
 	uint8_t tx_pkt = 0;
 	
-	#ifdef USE_ENCS
-	tx_pkt += Encoder_sendOdometryToHost();
-	#endif
+	if(cnt_system_log == FIRMWARE_COMMUNICATION_RATE) {
+		UART_send_packet((PacketHeader*)&(system_status));
+		cnt_system_log -= 100;
 	
-	#ifdef USE_IMU
-	tx_pkt += IMU_sendIMUDataToHost();
-	tx_pkt += IMU_sendOdometryToHost();
-	#endif
+		system_status.idle_cycles = 0;
+		system_status.global_secs_count++;
+		
+		#ifdef ODOM_ENCS
+		tx_pkt += Encoder_sendOdometryToHost();
+		#endif
+
+		#ifdef ODOM_IMU
+		//tx_pkt += IMU_sendIMUDataToHost();
+		tx_pkt += IMU_sendOdometryToHost();
+		#endif
+	}
+	cnt_system_log++;
+
+
+
+	AcquisitionPlatform_reassembleSensorsData();
+	tx_pkt += AcquisitionPlatform_sendSensorsDataToHost();
 
 	system_status.tx_count += tx_pkt;
-
-	system_status.idle_cycles = 0;
-	system_status.global_secs_count++;
-	//system_status.tx_count+=; //TODO
 }
 
 
 static void Firmware_setPeriodicDataCommunication(void) {
-  uint16_t period_ms = 1000 / FIRMWARE_COMMUNICATION_RATE; //from a frequency in Hz, we get a period in millisecs
+  uint16_t period_ms = 1000 / (FIRMWARE_COMMUNICATION_RATE); //from a frequency in Hz, we get a period in millisecs
   
-  // configure timer1, prescaler : 1024, CTC (Clear Timer on Compare match)
+  // configure timer1, prescaler : 256, CTC (Clear Timer on Compare match)
   TCCR5A = 0;
-  TCCR5B = (1 << WGM12)| (1 << CS10) | (1 << CS12); 
+  TCCR5B = (1 << WGM12)| (1 << CS12); 
   
-  /*
+	/*
 	 * cpu frequency 16MHz = 16.000.000 Hz
 	 * prescaler 256
-	 *	-->> TCNT1 increased at a frequency of 16.000.000/1024 Hz = 15625 Hz
-	 *	so 1 ms will correspond do 15.625 counts
+	 *	-->> TCNT1 increased at a frequency of 16.000.000/256 Hz = 62500 Hz
+	 *	so 1 ms will correspond do 62.5 counts
 	 */
-  OCR5A = (uint16_t)(15.625 * period_ms);
+  OCR5A = (uint16_t)(62.5 * period_ms);
 
 	// timer-interrupt enabling will be executed atomically (no other interrupts)
 		// and ATOMIC_FORCEON ensures Global Interrupt Status flag bit in SREG set afetrwards
@@ -117,13 +129,19 @@ int main(void){
 
 	#ifdef USE_ENCS
 	Encoders_Init();
+	#endif
+	#ifdef ODOM_ENCS
 	Encoder_OdometryInit();
 	#endif
 	
 	#ifdef USE_IMU
 	IMU_Init();
+	#endif
+	#ifdef ODOM_IMU
 	IMU_OdometryInit();
 	#endif
+	
+	AcquisitionPlatform_init();
 	
 	#ifndef DEBUG_PRINTF
 	PacketHandler_init();

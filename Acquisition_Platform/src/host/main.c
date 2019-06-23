@@ -7,6 +7,7 @@
 
 
 #include "serial/serial.h"
+#include "kalman_filter/kalman_filter.h"
 
 #include "host.h"
 
@@ -99,22 +100,25 @@ int main(int argc, char** argv) {
 	Host_handle_IMU_Calibration(calibration_flag);
 	Host_printIMUConfiguration();
 	#endif
-
+	
 	
 	while(1) {
-		#ifdef USE_ENCS
+		#ifdef ODOM_ENCS
 		//Host_getOdometryData();
 		Host_printOdometryData();
 		#endif
 		
-		#ifdef USE_IMU
+		#ifdef ODOM_IMU
 		//Host_getAccelerometerData();
 		//Host_getGyroscopeData();
 		//Host_getMagnetometerData();
 		
-		Host_printIMUData();
+		//Host_printIMUData();
 		Host_printIMUOdometryData();
 		#endif
+		
+		Host_printSensorsData();
+		KalmanFilter_OdometryPrint();
 		
 		sleep(1);
 	}
