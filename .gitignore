@@ -1,6 +1,5 @@
-docs/*
+references/*
 imgs/*
-thesis/*
 README.txt
 !Acquisition_Platform/src/host/kalman_filter/README.txt
 *.o
@@ -15,3 +14,12 @@ Acquisition_Platform/host_build/*
 !Acquisition_Platform/host_build/Makefile
 Acquisition_Platform/firmware_build/*
 !Acquisition_Platform/firmware_build/Makefile
+*.toc
+*.bcf
+*.aux
+*.run.xml
+*.out
+*.log
+*.bbl
+*.blg
+docs/thesis/pseudocode/*

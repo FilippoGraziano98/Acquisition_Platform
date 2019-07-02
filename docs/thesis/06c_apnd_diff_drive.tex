@@ -1,0 +1,67 @@
+\chapter{Differential Drive Implementation}\label{diff_drive_implementation}
+
+In this appendix we present the implementation of the Differential Drive localization technique.
+
+\begin{ccode}
+	static const float sin_taylor_coeffs[] = {1., 0., -1./6., 0., 1./120., 0.};
+	static const float cos_taylor_coeffs[] = {0., 1./2., 0., -1./24., 0., 1./720.};
+
+	static void computeThetaTerms(float* sin_theta_over_theta, float* one_minus_cos_theta_over_theta, float theta) {
+		*sin_theta_over_theta = 0;
+		*one_minus_cos_theta_over_theta = 0;
+		float theta_exp = 1;
+	
+		uint8_t i;
+		for(i=0; i < (sizeof(sin_taylor_coeffs)/sizeof(float)); i++) {
+			*sin_theta_over_theta += sin_taylor_coeffs[i]*theta_exp;
+			*one_minus_cos_theta_over_theta += cos_taylor_coeffs[i]*theta_exp;
+		
+			theta_exp *= theta;
+		}
+	}
+
+	void Encoder_OdometryUpdate(void) {
+		int32_t encs_cnt[NUM_ENCODERS];
+		// reads encoders' global counters in encs_cnt
+	
+		// calculates how many rotations where done in the last 10 ms
+		int32_t left_ticks = encs_cnt[0] - encs_cnt_previous[0];
+		int32_t right_ticks = encs_cnt[1] - encs_cnt_previous[1];
+	
+		//if encoders didn't detect any move,
+			//robot didn't move
+		if( left_ticks || right_ticks ) {
+			//updates previous values stored
+			encs_cnt_previous[0] = encs_cnt[0];
+			encs_cnt_previous[1] = encs_cnt[1];
+		
+			//gets movement in meters
+			float delta_l = left_ticks * (float)METERS_PER_ENCODER_TICK;
+			float delta_r = right_ticks * (float)METERS_PER_ENCODER_TICK;
+		
+			float delta_plus = delta_r + delta_l;
+			float delta_minus = delta_r - delta_l;
+		
+			float delta_theta = delta_minus / BASE_LEN;
+		
+			float sin_dtheta_over_dtheta, one_minus_cos_dtheta_over_dtheta;
+			computeThetaTerms(&sin_dtheta_over_dtheta, &one_minus_cos_dtheta_over_dtheta, delta_theta);
+		
+			float delta_x = .5 * delta_plus * sin_dtheta_over_dtheta;
+			float delta_y = .5 * delta_plus * one_minus_cos_dtheta_over_dtheta;		
+				
+			//update global odometry
+				//odom_theta is the orientation angle until now
+			float sin_theta = sin(odom_theta);
+			float cos_theta = cos(odom_theta);
+		
+			odom_x += delta_x*cos_theta - delta_y*sin_theta;
+			odom_y += delta_x*sin_theta + delta_y*cos_theta;
+			odom_theta += delta_theta;
+		
+			//update global current volocities
+			translational_velocity = .5 * delta_plus / delta_time;
+			rotational_velocity = delta_theta / delta_time;
+		}
+	}
+\end{ccode}

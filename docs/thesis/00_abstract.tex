@@ -1,0 +1,18 @@
+\begin{abstract}
+
+In this thesis we will present the robot we have built in the last months. This robot implements two different localization algorithms:
+\begin{itemize}
+	\item on one side, it uses two encoders to measure the wheel rotations and estimate position and orientation using differential drive;
+	\item on the other side, it uses an IMU\footnote{IMU stands for Inertial Measurement Unit} to estimate the position using inertial navigation.
+\end{itemize}
+The thesis is structured as follows:
+\begin{itemize}
+	\item Chapter 1 introduces the problem of localization and its importance for autonomous robots.
+	\item Chapter 2 describes the sensors used by the robot and how they work.
+	\item Chapter 3 includes a broad description of the robot, explaining the specific hardware used, the communication protocols needed, the firmware and how it interfaces with the sensors, and finally the host (i.e. the PC\footnote{PC stands for Portable Computer} interfacing with the firmware).
+	\item Chapter 4 explains the two localization algorithms in detail.
+	\item Chapter 5 provides some final considerations and hints possible improvements in the localization algorithms adopted for our robot.
+	\item Some implementation details are provided in the Appendices.
+\end{itemize}
+The code for both the firmware running on the robot and the host is available at \url{https://github.com/FilippoGraziano98/Acquisition_Platform}.
+\end{abstract}

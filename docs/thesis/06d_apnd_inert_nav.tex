@@ -1,0 +1,99 @@
+\chapter{Inertial Navigation Implementation}\label{inert_nav_implementation}
+
+In this appendix we present the implementation of the Inertial Navigation technique.
+
+\begin{ccode}
+	#define IMU_ANG_VEL_THRESHOLD 0.4 //DPS
+	#define IMU_TRASL_ACC_THRESHOLD 0.05 //G-Forces
+	#define G_FORCE_ACCEL_G 1 //g[G] = 1
+	#define G_FORCE_ACCEL_M_S2 9.8 //accel[m/s^2] = accel[G-Force]*9.8
+
+	#define STOP_BREAKING_TRESHOLD 2
+	#define STOP_ZERO_ACCEL_OUTLIER_FILTER 5
+	
+	// HIGH-PASS FILTER for translational accelerations
+		// (moreover we also convert from an acceleration in G-forces to an acceleration in m/s^2)
+	translational_acceleration_x_axis = (fabs(accel_x) > IMU_TRASL_ACC_THRESHOLD) ? accel_x*G_FORCE_ACCEL_M_S2 : 0.;
+	translational_acceleration_y_axis = (fabs(accel_y) > IMU_TRASL_ACC_THRESHOLD) ? accel_y*G_FORCE_ACCEL_M_S2 : 0.;
+		//since we are in 2D, we'll always have a gravitational acceleration componenet on the z-axis, for which we must compensate
+	translational_acceleration_z_axis = (fabs(accel_z - G_FORCE_ACCEL_G) > IMU_TRASL_ACC_THRESHOLD) ? accel_z*G_FORCE_ACCEL_M_S2 : 0.;
+	
+	// STOP MOTION DETECTION x axis
+	if ( translational_acceleration_x_axis > 0. ) {
+		total_time_pos_accel_x++;
+		curr_time_zero_accel_x = 0;
+	} else if ( translational_acceleration_x_axis < 0. ) {
+		total_time_neg_accel_x++;
+		curr_time_zero_accel_x = 0;
+	} else //accel_x_axis == 0.
+		curr_time_zero_accel_x++;	
+	
+	if( curr_time_zero_accel_x > STOP_ZERO_ACCEL_OUTLIER_FILTER && curr_time_zero_accel_x >= abs( total_time_pos_accel_x - total_time_neg_accel_x) * STOP_BREAKING_TRESHOLD) {
+		//after it has had approximately
+			//the same time of positive and negative acceleration
+			//we assume it is in MOTIONLESS state
+		translational_acceleration_x_axis = 0.;
+		translational_velocity_x_axis = 0.;
+		total_time_pos_accel_x = 0;
+		total_time_neg_accel_x = 0;
+	}
+	
+	// STOP MOTION DETECTION y axis
+	if ( translational_acceleration_y_axis > 0. ) {
+		total_time_pos_accel_y++;
+		curr_time_zero_accel_y = 0;
+	} else if ( translational_acceleration_y_axis < 0. ) {
+		total_time_neg_accel_y++;
+		curr_time_zero_accel_y = 0;
+	} else //accel_x_axis == 0.
+		curr_time_zero_accel_y++;	
+	
+	if( curr_time_zero_accel_y > STOP_ZERO_ACCEL_OUTLIER_FILTER && curr_time_zero_accel_y >= abs( total_time_pos_accel_y - total_time_neg_accel_y) * STOP_BREAKING_TRESHOLD) {
+		//after it has had approximately
+			//the same time of positive and negative acceleration
+			//we assume it is in MOTIONLESS state
+		IMU_OdometryController.odometry_status.translational_acceleration_y_axis = 0.;
+		IMU_OdometryController.odometry_status.translational_velocity_y_axis = 0.;
+		IMU_OdometryController.odometry_status.total_time_pos_accel_y = 0;
+		IMU_OdometryController.odometry_status.total_time_neg_accel_y = 0;
+	}
+	
+	// integrate in the local motion vector (local reference frame)
+	// dx = v*t + .5*a*t*t = (v + .5*a*t)*t
+	float delta_x_local = (translational_velocity_x_axis + .5*translational_acceleration_x_axis*delta_time) * delta_time;
+	float delta_y_local = (translational_velocity_y_axis + .5*translational_acceleration_y_axis*delta_time) * delta_time;
+		//since we are in 2D we can assume delta_z to be 0
+	float delta_z_local = 0.0;//(translational_velocity_z_axis + .5*translational_acceleration_z_axis*delta_time) * delta_time;
+	
+	// update global odom x, y, z
+	float sin_yaw = sin(imu_yaw);
+	float cos_yaw = cos(imu_yaw);
+	
+	imu_odom_x += delta_x_local*cos_yaw - delta_y_local*sin_yaw,
+	imu_odom_y += delta_x_local*sin_yaw + delta_y_local*cos_yaw;
+	imu_odom_z += delta_z_local;// 0.0
+	
+	// integrate in translational velocities
+	translational_velocity_x_axis += translational_acceleration_x_axis * delta_time;
+	translational_velocity_y_axis += translational_acceleration_y_axis * delta_time;
+	translational_velocity_z_axis += translational_acceleration_z_axis * delta_time;
+	
+	// high-pass filter for rotational velocities
+	rotational_velocity_z_axis = (fabs(gyro_z) > IMU_ANG_VEL_THRESHOLD) ? gyro_z : 0.;
+	rotational_velocity_y_axis = (fabs(gyro_y) > IMU_ANG_VEL_THRESHOLD) ? gyro_y : 0.;
+	rotational_velocity_x_axis = (fabs(gyro_x) > IMU_ANG_VEL_THRESHOLD) ? gyro_x : 0.;
+	
+	// integrate in local orientation change
+	float delta_yaw_deg = rotational_velocity_z_axis * delta_time;
+	float delta_pitch_deg = rotational_velocity_y_axis * delta_time;
+	float delta_roll_deg =	rotational_velocity_x_axis * delta_time;
+	
+	float delta_yaw_rad = delta_yaw_deg * M_PI / M_180;
+	float delta_pitch_rad = delta_pitch_deg * M_PI / M_180;
+	float delta_roll_rad = delta_roll_deg * M_PI / M_180;
+	
+	//update global yaw, roll, pitch
+	imu_yaw += delta_yaw_rad;
+ 	imu_pitch += delta_pitch_rad;
+ 	imu_roll += delta_roll_rad;
+\end{ccode}

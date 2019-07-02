@@ -1,0 +1,523 @@
+\chapter{I2C Protocol Implementation}\label{i2c_implementation}
+
+In this appendix we present two implementations of the I2C protocol. The first one is a busy-waiting implementation, while the second one is an interrupt-driven implementation. These implementations are specific for the board used\supercite{mega2560_datasheet}, and uses the TWI module offered by the board\footnote{TWI is a variant of I2C used by manufacturers like Atmel}.
+
+\section{I2C Control Registers}
+
+On the board used, the TWI module is controlled by the following set of registers.
+\begin{itemize}
+	\item TWBR (TWI Bit Rate Register) is used to control the SCL clock frequency.
+	\item TWCR (TWI Control Register) is used to control TWI operations and to poll if the current operation has ended.
+	\item TWSR (TWI Status Register) is used to check the status of the TWI module and of the current transaction.
+	\item TWDR (TWI Data Register) contains the data travelling on the data bus.
+\end{itemize}
+
+\section{I2C Busy-Waiting Primitives Implementation}\label{i2c_primitives}
+
+In this section we will show a busy-waiting implementation of the primitives needed for the I2C protocol. After the start of each operation in fact the CPU polls the TWCR register until the end of the operation.
+\begin{ccode}
+	#define FREQ_CPU 16000000L	//cpu clock speed at 16MHz
+	#define FREQ_I2C 400000L		//i2c clock speed at 400KHz
+
+
+	//status indicating START condition successfully sent
+	#define TWSR_START 0x08
+	#define TWSR_REPEATED_START 0x10
+
+	//status codes for Master Transmitter mode (MT)
+	//status indicating address packet successfully sent
+	#define TWSR_MT_SLA_ACK 0x18
+	#define TWSR_MT_SLA_NACK 0x20
+	//status indicating data packet successfully sent
+	#define TWSR_MT_DATA_ACK 0x28
+	#define TWSR_MT_DATA_NACK 0x30
+
+	//status codes for Master Receiver mode (MR)
+	//status indicating address packet successfully sent
+	#define TWSR_MR_SLA_ACK 0x40
+	#define TWSR_MR_SLA_NACK 0x48
+	//status indicating data packet successfully sent
+	#define TWSR_MR_DATA_ACK 0x50
+	#define TWSR_MR_DATA_NACK 0x58
+
+	/*
+	 *	This function is used to initialize the I2c Module
+	 */
+	void I2C_Init(void) {
+		//set te frequency of the Serial Data Clock
+			//no need of prescaler, so TWSR = 0
+		TWSR = 0x00;
+		TWBR = ((FREQ_CPU/FREQ_I2C)-16)/2;
+		
+		//TWEN to enable theTWI module
+		TWCR = (1<<TWEN);
+	}
+
+	static void _I2C_Start(void) {
+		//TWINT to start the operation of the TWI
+		//TWEN to start TWI interface
+		//TWSTA to make the microcontroller master on the bus (sending a start condition)
+		TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWSTA);
+
+		//wait until current task has ended
+		while (!(TWCR & (1<<TWINT)));
+	}
+
+	/*
+	 *	This function is used to generate I2C Start Condition
+	 *		Start Condition: SDA goes low when SCL is High
+	 *	@return: 1 if ok, 0 else
+	 */
+	uint8_t I2C_Start(void) {
+		_I2C_Start();
+		
+		//check if status code generated is 0x08
+		return (TWSR&0xF8) == TWSR_START;
+	}
+
+	/*
+	 *	This function is used to generate a repeated I2C Start Condition
+	 *		Start Condition: SDA goes low when SCL is High
+	 *	@return: 1 if ok, 0 else
+	 */
+	uint8_t I2C_Repeated_Start(void) {
+		_I2C_Start();
+		
+		//check if status code generated is 0x10
+		return (TWSR&0xF8) == TWSR_REPEATED_START;
+	}
+
+	/*
+	 *	This function is used to generate I2C Stop Condition
+	 *		Stop Condition: SDA goes High when SCL is High
+	 */
+	void I2C_Stop(void) {
+		//TWSTO generates a STOP condition
+		TWCR = (1<< TWINT)|(1<<TWEN)|(1<<TWSTO);
+		
+		 //wait for a short time
+		 _delay_us(10) ;
+	}
+
+	static void _I2C_Write(unsigned char data) {
+		//writes data (an 8-bit info) on TWDR
+		TWDR = data;
+		
+		//TWINT to start the operation of the TWI
+		//TWEN to start TWI interface
+		TWCR = (1<< TWINT)|(1<<TWEN);
+		
+		//wait until current task has ended
+		while (!(TWCR & (1 <<TWINT)));
+	}
+
+	/*
+	 *	This function is used to send a Device Address over the bus
+	 *	@param address_7bit : is the 7bit address of the slave device
+	 *													you want to communicate with
+	 *	@param rw : rw flag to determine if master transmitter/receiver mode
+	 *								if rw = 1, read
+	 *								else, write
+	 *	@return: 1 if ok, 0 else
+	 */
+	uint8_t I2C_SendAddress(uint8_t address_7bit, uint8_t rw) {
+		uint8_t addr = address_7bit<<1;
+		if(rw) //read
+			addr |= 1;	//set rw bit to 1
+	
+		_I2C_Write(addr);
+		
+		//checks the status code generated
+		if(rw) //read, Master Receiver
+			return (TWSR&0xF8) == TWSR_MR_SLA_ACK;
+		 else //write, Master Transmitter
+		 	return (TWSR&0xF8) == TWSR_MT_SLA_ACK;
+	}
+
+	/*
+	 *	This function is used to send a byte on SDA line using I2C protocol
+	 *		8bit data is sent bit-by-bit on each clock cycle
+	 *			MSB(bit) is sent first and LSB(bit) is sent at last
+	 *		Data is sent when SCL is low
+	 *	@return: 1 if ok, 0 else
+	 */
+	uint8_t I2C_Write(uint8_t data) {
+		_I2C_Write(data);
+		
+		//checks the status code generated
+		return (TWSR&0xF8) == TWSR_MT_DATA_ACK;
+	}
+
+	/*
+	 *	This function is used to receive a byte on SDA line using I2C protocol
+	 *		8bit data is received bit-by-bit each clock and finally packed into Byte
+	 *			MSB(bit) is received first and LSB(bit) is received at last
+	 */
+	#define ACK 1
+	#define NACK 0
+	uint8_t I2C_Read(uint8_t ack) {
+		//TWINT to start the operation of the TWI
+		//TWEN to start TWI interface
+		//TWEA controls the generation of the acknowledge pulse
+		//	- if 1, then ACK pulse is generated
+		//	- else, not
+		TWCR = (1<<TWINT)|(1<<TWEN)|(ack<<TWEA);
+	
+		//wait current task ended
+		while (!(TWCR & (1 <<TWINT)));
+	
+		return TWDR;
+	}
+\end{ccode}
+
+\section{I2C Busy-Waiting Implementation}
+
+In the following section we will use the primitives defined previously, to implement the I2C protocol in busy-waiting mode.
+\paragraph{Write Operations}
+\begin{ccode}
+	#define WRITE 0
+
+	static void I2C_WritePreamble(uint8_t device_address, uint8_t device_reg) {
+		uint8_t err;
+		
+		//master transmits the start condition
+		err = I2C_Start();
+		check_err(err, "[I2C_WritePreamble] Error transmitting the Start condition");
+	
+		//master transmits the (7bits) device address and the write bit (0)
+		err = I2C_SendAddress(device_address, WRITE);
+		check_err(err, "[I2C_WritePreamble] Error transmitting the Device Address");
+
+		//master puts the address of the internal device register on the bus
+		err = I2C_Write(device_reg);
+		check_err(err, "[I2C_WritePreamble] Error transmitting the Internal Device Register");
+	}
+
+	void I2C_WriteRegister(uint8_t device_address, uint8_t device_reg, uint8_t data) {
+		uint8_t err;
+	
+		I2C_WritePreamble(device_address, device_reg);
+	
+		//master puts the data to be written on the bus
+		err = I2C_Write(data);
+		check_err(err, "[I2C_WriteRegister] Error transmitting the data to be written");
+
+		I2C_Stop();
+	}
+	
+	void I2C_WriteNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, uint8_t* data) {
+		uint8_t err;
+	
+		I2C_WritePreamble(device_address, device_reg_start);
+	
+		//master puts the data to be written on the bus, one byte at the time
+		int i;
+		for(i=0; i<n; i++) {
+			err = I2C_Write(data[i]);
+			check_err(err, "[I2C_WriteNRegisters] Error transmitting the data to be written");
+		}
+		I2C_Stop();
+	}
+\end{ccode}
+\paragraph{Read Operations}
+\begin{ccode}
+	#define READ 1
+	#define WRITE 0
+
+	static void I2C_ReadPreamble(uint8_t device_address, uint8_t device_reg) {
+		uint8_t err;
+		/* MASTER TRANSMITTER MODE */
+		//master transmits the start condition
+		err = I2C_Start();
+		check_err(err, "[I2C_ReadPreamble] Error transmitting the Start condition");
+	
+		//master transmits the 7-bits device address and the write bit (0)
+		err = I2C_SendAddress(device_address, WRITE);
+		check_err(err, "[I2C_ReadPreamble] Error transmitting the Device Address");
+
+		//master puts the address of the internal device register on the bus
+		err = I2C_Write(device_reg);
+		check_err(err, "[I2C_ReadPreamble] Error transmitting the Internal Device Register");
+	
+		/* MASTER RECEIVER MODE */
+		//master transmits the start condition (restart)
+		err = I2C_Repeated_Start();
+		check_err(err, "[I2C_ReadPreamble] Error re-transmitting the Start condition");
+	
+		//master transmits the (7bits) device address and the read bit (1)
+		err = I2C_SendAddress(device_address, READ);
+		check_err(err, "[I2C_ReadPreamble] Error transmitting the Device Address");
+	}
+
+	uint8_t I2C_ReadRegister(uint8_t device_address, uint8_t device_reg) {	
+		I2C_ReadPreamble(device_address, device_reg);
+	
+		//master reads from the bus without outputting ACK (=> NACK)
+		unsigned char data = I2C_Read(0);
+	
+		I2C_Stop();
+	
+		return data;
+	}
+
+	void I2C_ReadNRegisters(uint8_t device_address, uint8_t device_reg_start, int n, uint8_t* data) {
+		I2C_ReadPreamble(device_address, device_reg_start);
+	
+		//master reads from the bus outputting an ACK for each byte
+		int i;
+		for(i=0; i<n-1; i++) {
+			data[i] = I2C_Read(ACK);
+		}
+		//master reads from the bus without outputting ACK (=> NACK)
+		data[n-1] = I2C_Read(NACK);
+	
+		I2C_Stop();
+	}
+\end{ccode}
+
+\section{I2C Interrupt-Driven Implementation}
+
+In the following section we will present an interrupt-driven implementation of the I2C protocol. The TWI module in fact offers interrupt support, enabling the application software to carry on other operations during a TWI byte transfer.\\
+
+When the TWINT Flag is asserted, the TWI has finished an operation and awaits application response. In this case, the TWI Status Register (TWSR) contains a value indicating the current state of the TWI bus. The application software can then decide how the TWI should behave in the next TWI bus cycle by manipulating the TWCR and TWDR Registers\supercite{mega2560_datasheet}.
+
+\paragraph{I2C Operations Handling}
+We have decided to store the operations in a global queue that the ISR of the TWI module will automatically process.\\
+Each operation has a set of attributes:
+\begin{itemize}
+	\item the address of the slave device involved in the operation,
+	\item a data buffer containing the data to be sent to the slave for write operations, or the data sent by the slave for read operations,
+	\item the length of the buffer, indicating the number of bytes to write or read,
+	\item the address of a post process function which will be fired at the end of the operation for any further processing to be done on the data in the buffer.\\In the implementation of the firmware, we have used the post process function in order to store the values returned by a read operation in the wanted memory locations.
+\end{itemize}
+\begin{ccode}
+	typedef void(*PostProcessFunction_t)(uint8_t* buffer, uint8_t buflen);
+
+	typedef struct I2C_Operation {
+		struct I2C_Operation* next;	//linked list of remaining ops
+		uint8_t device_address;//7 bits for device_address, 1 bit for read/write
+	
+		//note: if write op, device_reg will be first byte in buffer
+			// if read op, buffer starts as empty
+		uint8_t* buffer;	//full if write, empty if read
+		uint8_t buflen;		//length of the buffer (#data to read/write)
+		uint8_t bufpos;		//current pos in buffer
+	
+		PostProcessFunction_t post_process_fn; //to store values if it was a read op
+	} I2C_Operation;
+\end{ccode}
+
+\paragraph{TWI Module Initialization}
+The main difference between this and the previous (\ref{i2c_primitives}) TWI initialization is that this time we must enable the generation of interrupts by the TWI module.
+\begin{ccode}
+	#define FREQ_CPU 16000000L	//cpu clock spedd at 16MHz
+	#define FREQ_I2C 400000L		//i2c clock spped at 400KHz
+
+
+	//status indicating START condition successfully sent
+	#define TWSR_START 0x08
+	#define TWSR_REPEATED_START 0x10
+	#define TWSR_SLARW_ARB_LOST 0x38
+
+	//status codes for Master Transmitter mode (MT)
+	#define TWSR_MT_SLA_ACK 0x18
+	#define TWSR_MT_SLA_NACK 0x20
+	#define TWSR_MT_DATA_ACK 0x28
+	#define TWSR_MT_DATA_NACK 0x30
+
+	//status codes for Master Receiver mode (MR)
+	#define TWSR_MR_SLA_ACK 0x40
+	#define TWSR_MR_SLA_NACK 0x48
+	#define TWSR_MR_DATA_ACK 0x50
+	#define TWSR_MR_DATA_NACK 0x58
+
+	static volatile I2C_Operation* global_I2C_ops;
+
+	void I2C_Init(void) {
+		cli();
+	
+		//set te frequency of the Serial Data Clock
+		TWSR = 0x00;
+		TWBR = ((FREQ_CPU/FREQ_I2C)-16)/2;
+	
+		//Active internal pull-up resistors for SCL and SDA
+			//on atmega 2560 they are PD0 and PD1
+		PORTD |= 1|(1<<1);
+
+		// Disable slave mode
+		TWAR = 0;
+	
+		//TWEN: TWI Enable, to start TWI interface
+		//TWIE : TWI Interrupt Enable in TWCR
+		TWCR = (1<<TWEN)|(1<<TWIE);
+		sei();
+	}
+\end{ccode}
+
+\paragraph{I2C Exposed Function}
+The following is the primitive exposed to the CPU to enqueue I2C operations.
+\begin{ccode}
+	void I2C_Enqueue_Operation(uint8_t device_address_7bit, uint8_t rw, uint8_t n, uint8_t* data, PostProcessFunction_t post_process_fn) {
+		if( n <= 0 )	// no empty operations in the queue
+			return;
+	
+		I2C_Operation* op = (I2C_Operation*)malloc(sizeof(I2C_Operation));
+	
+		op->next = NULL;
+	
+		op->device_address = (rw) ? (device_address_7bit<<1)|1 : (device_address_7bit<<1);
+	
+		op->buffer = (uint8_t*)malloc(n*sizeof(uint8_t));
+		if( data != NULL )
+			memcpy(op->buffer, data, n);
+		op->buflen = n;
+		op->bufpos = 0;
+	
+		op->post_process_fn = post_process_fn;
+	
+		// updates on global list of I2C_Operations will be executed atomically
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			if( global_I2C_ops == NULL ) {
+				//if there was no pending operation,
+					//appends current one
+				global_I2C_ops = op;
+					//and schedules it immediately
+				TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWSTA);
+			} else {
+				I2C_Operation* aux = global_I2C_ops;
+				while( aux->next != NULL)
+					aux = aux->next;
+				aux->next = op;
+			}
+		}
+	}
+\end{ccode}
+
+\paragraph{Interrupt Service Routine}
+The following ISR reads the value in the TWSR register and according to its value it decides how to proceed. The possible application software responses are based on the board's datasheet\supercite{mega2560_datasheet}.
+
+\begin{ccode}
+	ISR(TWI_vect) {
+		//if there is no global I2C_Operation, exits
+		if( global_I2C_ops == NULL )
+			return;
+	
+		switch( TWSR & 0xF8 ) {	//TWI Status
+			//a START (or a repeated START) condition has been transmitted
+			case TWSR_START:
+			case TWSR_REPEATED_START:
+				//send address_7bit + read_bit
+				TWDR = global_I2C_ops->device_address;
+				//resets bufpos (should already be 0)
+				global_I2C_ops->bufpos = 0;
+				TWCR = (1<< TWINT)|(1<<TWEN)|(1<<TWIE);
+				break;
+		
+			//arbitration lost in SLA+R/W or NACK bit
+			case TWSR_SLARW_ARB_LOST:
+				//start condition will be retransmitted
+				TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWSTA);
+				break;
+		
+		/* WRITE operation, Master Transmitter Mode */
+	
+			//SLA+W has been transmitted; ACK has been received
+			case TWSR_MT_SLA_ACK:
+				//sends first byte (device reg)
+				TWDR = global_I2C_ops->buffer[global_I2C_ops->bufpos];
+				global_I2C_ops->bufpos++;
+				TWCR = (1<< TWINT)|(1<<TWEN)|(1<<TWIE);
+				break;
+		
+			// SLA+W has been transmitted; NOT ACK has been received
+			case TWSR_MT_SLA_NACK:
+				//STOP condition followed by a START condition will be transmitted
+					//and TWSTO Flag will be reset
+				TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWSTA)|(1<<TWSTO);
+				break;
+		
+			// data byte has been transmitted; ACK has been received
+			case TWSR_MT_DATA_ACK:
+				//sends next byte
+				if( global_I2C_ops->bufpos < global_I2C_ops->buflen ) {
+					TWDR = global_I2C_ops->buffer[global_I2C_ops->bufpos];
+					global_I2C_ops->bufpos++;
+					TWCR = (1<< TWINT)|(1<<TWEN)|(1<<TWIE);
+					break;
+				} else {
+					//calls post-processing function
+					if( global_I2C_ops->post_process_fn != NULL )
+						(*(global_I2C_ops->post_process_fn))(global_I2C_ops->buffer, global_I2C_ops->buflen);
+				
+					goto next_operation;
+				}
+			
+			case TWSR_MT_DATA_NACK:
+				//STOP condition followed by a START condition will be transmitted
+					//and TWSTO Flag will be reset
+				TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWSTA)|(1<<TWSTO);
+				break;
+
+		/* READ operation, Master Receiver Mode */
+		
+			// SLA+R has been transmitted; ACK has been received
+			case TWSR_MR_SLA_ACK:
+				//if just one read, ACK pulse not generated
+				if (global_I2C_ops->buflen == 1)
+					TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+				else 	//else ACK is generated
+					TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWEA);
+				break;
+		
+			// SLA+R has been transmitted; NOT ACK has been received
+			case TWSR_MR_SLA_NACK:
+				//STOP condition followed by a START condition will be transmitted
+					//and TWSTO Flag will be reset
+				TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWSTA)|(1<<TWSTO);
+				break;
+		
+			// data byte has been received; ACK has been returned
+			case TWSR_MR_DATA_ACK:
+				//read byte
+				global_I2C_ops->buffer[global_I2C_ops->bufpos] = TWDR;
+				global_I2C_ops->bufpos++;
+				//if this is last operation, ACK pulse not generated
+				if( global_I2C_ops->bufpos+1 == global_I2C_ops->buflen )
+					TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+				else //else ACK is generated
+					TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWEA);
+				break;
+		
+			// data byte has been received; NOT ACK has been returned
+			case TWSR_MR_DATA_NACK:
+				//read byte
+				global_I2C_ops->buffer[global_I2C_ops->bufpos] = TWDR;
+				global_I2C_ops->bufpos++;
+				//calls post-processing function
+				if( global_I2C_ops->post_process_fn != NULL )
+					(*(global_I2C_ops->post_process_fn))(global_I2C_ops->buffer, global_I2C_ops->buflen);
+			
+				goto next_operation;
+					
+			default:
+				//it should never get here, we treated all possible Status Codes
+				exit(1);
+		}
+		return;
+	
+		next_operation: {
+			I2C_Operation* ended_op = global_I2C_ops;
+				//forwards to next transaction
+			global_I2C_ops = global_I2C_ops->next;
+		
+			if( global_I2C_ops != NULL )	//repeated start
+				TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWSTA);
+			else 	//if there is no next operation, transmits a stop
+				TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE)|(1<<TWSTO);
+		
+			free(ended_op->buffer);
+			free(ended_op);
+			return;
+		}
+	}
+\end{ccode}

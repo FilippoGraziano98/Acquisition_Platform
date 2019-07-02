@@ -1,0 +1,113 @@
+% !TeX encoding = UTF-8
+% !TeX program = pdflatex
+% !TeX spellcheck = en_US
+% !TEX root = main.tex
+
+\documentclass[binding=0.6cm, Lau, english]{sapthesis}
+
+\usepackage{microtype}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenx}
+\usepackage[hyperfootnotes=false]{hyperref}
+\usepackage[backend=biber,style=ieee,sorting=none]{biblatex}
+\usepackage[titletoc]{appendix}
+\usepackage{graphicx}
+\graphicspath{ {./imgs/} }
+
+\usepackage{caption,subcaption}
+
+\hypersetup{
+	pdftitle={Differential Drive and Inertial Navigation Robot},
+	pdfauthor={Filippo Graziano},
+	colorlinks  = true,
+	urlcolor   = blue,
+	linkcolor  = black,
+	citecolor  = red
+}
+
+\addbibresource{07_bibliography.bib}
+
+\renewcommand{\baselinestretch}{1.25} 
+
+\usepackage{setspace}
+\onehalfspacing
+
+\makeatletter
+\renewcommand\@makefntext[1]{\leftskip=2em\hskip-2em\@makefnmark#1}
+\makeatother
+
+
+\usepackage{listings}
+\usepackage[dvipsnames]{xcolor}
+
+\definecolor{deeppink}{rgb}{0.45, 0.00, 0.8}
+\lstnewenvironment{ccode}[1][]{
+	\lstset{
+		language=C,
+		numbers=left,
+		stepnumber=1,
+			tabsize=2,
+		breaklines=true,
+		basicstyle=\linespread{1.0}\ttfamily,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{OliveGreen}\ttfamily,
+		morecomment=[l][\color{deeppink}]{\#},
+		columns=fullflexible,
+		postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+		escapeinside={(*@}{@*)},
+		showstringspaces=false
+	}
+	\lstdefinestyle{nonumbers}
+	{numbers=none}
+}{}
+
+
+\begin{document}
+
+\title{Differential Drive and Inertial Navigation Robot}
+
+\author{Filippo Graziano}
+\IDnumber{1761694}
+\course{Computer and Control Engineering}
+\courseorganizer{Faculty of Information Engineering, Informatics and Statistics}
+
+\AcademicYear{2018/2019}
+\copyyear{2019}
+
+\advisor{Prof. Giorgio Grisetti}
+\authoremail{graziano.1761694@studenti.uniroma1.it}
+
+\frontmatter
+\maketitle
+
+%\dedication{To ...}
+
+\include{00_abstract}
+\include{00_acknowledgments}
+
+\tableofcontents
+
+\mainmatter
+\include{01_introduction}
+\include{02_sensors}
+\include{03_robot_details}
+\include{04_navigation}
+\include{05_conclusions}
+
+\begin{appendices}
+	\include{06a_apnd_i2c}
+	\include{06b_apnd_uart}
+	\include{06c_apnd_diff_drive}
+	\include{06d_apnd_inert_nav}
+\end{appendices}
+\backmatter
+
+\cleardoublepage
+
+\phantomsection
+
+%\bibliographystyle{sapthesis} % BibTeX style
+\printbibliography[title=References,heading=bibintoc]
+
+\end{document}

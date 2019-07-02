@@ -1,0 +1,9 @@
+\chapter{Conclusions}
+
+In this thesis we have presented and performed some testing of two different localization techniques: Differential Drive and Inertial Navigation.\\
+The former is more accurate than the latter especially in the detection of motionless states, however it can have problems on certain surfaces if the wheels start to slip.\\
+Inertial Navigation is affected by electromagnetic noise and calibration errors which have been reduced with our simple and fast calibration process described in Section \ref{imu_calib}; results could be further improved with a more accurate calibration.\\
+
+So far we are only using the accelerometer and the gyroscope sensors of the IMU, while it also includes a magnetometer which provides a long-term North reference and could be used to correct for the drift of the gyroscope\supercite{magnetometer_in_inertial_nav}.\\
+
+Furthermore, the encoders and the IMU have been used separately, whilst they could be used together in the update of a single global odometry. In this way each sensor would compensate for the weaknesses of the other. This issue has been addressed and demonstrated in the additional work we have performed for the Honours Programme\footnote{The Honours Programme stands for "Percorso d'Eccellenza".}, where we have performed sensor fusion based on Kalman filtering.

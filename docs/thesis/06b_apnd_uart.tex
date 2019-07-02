@@ -1,0 +1,239 @@
+\chapter{UART Communication Implementation}\label{uart_implementation}
+
+In this appendix we present two implementations of UART communication. The first one is a busy-waiting implementation, while the second one is an interrupt-driven implementation. These implementations are specific for the board used\supercite{mega2560_datasheet}.
+\section{UART Control Registers}
+
+On the board used, the UART serial interface is controlled by the following set of registers.
+\begin{itemize}
+	\item UBRRn (UART Baud Rate Register) is used to control the frequency of the byte transmission.
+	\item UCSRn (UART Control and Status Register) allows to configure other aspects of the port and to poll if the UART is ready to transmit data or has received some.
+	\item UDRn (UART Data Register) is the data register containing the data being sent and received.
+\end{itemize}
+
+
+\section{UART Busy-Waiting Implementation}\label{uart_bw}
+
+In this first section we show an easy busy-waiting implementation of UART communication. Before starting any operation in fact the CPU polls until the end of the previous transmission.
+\begin{ccode}
+	//baud rate at which we want the serial to communicate
+	#define UART_BAUD_RATE 38400
+
+	//baud rate = F_CPU / (16*(UBRR+1))
+	#define UBRR ( (F_CPU/16)/UART_BAUD_RATE - 1 )
+
+	/*
+	 * initializes the UART at UART_BAUD_RATE baud rate
+	 */
+	void UART_Init(void){
+		//sets baud rate
+		UBRR0H = (uint8_t)((UBRR)>>8);
+		UBRR0L = (uint8_t)UBRR;
+	
+		//enables receiver and transmitter
+		UCSR0B = (1<<RXEN0)|(1<<TXEN0);
+	
+		//sets data packet format: 8data, 2stop bit
+		UCSR0C = (1<<UCSZ01)|(1<<UCSZ00);
+	}
+
+	/*
+	 * transmits a char through the UART module.
+	 *		It waits till previous char is transmitted (i.e. until UDRE is set),
+	 *		then the new byte to be transmitted is loaded into UDR.
+	 */
+	void UART_TxByte(uint8_t data) {
+		//waits until the transmit buffer is empty
+		while ( !( UCSR0A & (1<<UDRE0) ) );
+	
+		//puts data into buffer, sends the data
+		UDR0 = data;
+	}
+
+	/*
+	 * receives a char from the UART module.
+	 *		It waits till a char is received (i.e.till RXC is set),
+	 *		then returns the received char.
+	 */
+	uint8_t UART_RxByte(void) {
+		//waits for the data to be received
+		while ( !(UCSR0A & (1<<RXC0) ) );
+	
+		//gets and returns received data from buffer
+		return UDR0;
+	}
+\end{ccode}
+
+
+\section{UART Interrupt-Driven Implementation}
+
+In the following section we will present an interrupt-driven implementation of UART communication. The UART module in fact offers interrupt support, enabling the application software to carry on other operations during UART byte transfers.\\
+
+The UART module will fire a Receive Interrupt (RX) when a new byte has been received, and a Data Register Empty Interrupt when the transmit buffer is ready to receive new data.
+
+\paragraph{UART Data Handling}
+We have decided to store the data to be transmitted and the data received in two global buffers automatically populated by the ISRs.
+\begin{ccode}
+	#define UART_BUFFER_SIZE 255
+
+	typedef struct UART {
+		uint8_t tx_buffer[UART_BUFFER_SIZE];
+		volatile uint8_t tx_start;
+		volatile uint8_t tx_end;
+		volatile uint16_t tx_size;
+
+		uint8_t rx_buffer[UART_BUFFER_SIZE];
+		volatile uint8_t rx_start;
+		volatile uint8_t rx_end;
+		volatile uint16_t rx_size;
+		
+		uint16_t baudrate;
+	} UART;
+\end{ccode}
+
+\paragraph{UART Module Initialization}
+The main difference between this and the previous (\ref{uart_bw}) UART initialization is that this time we must enable the generation of interrupts by the UART module.
+\begin{ccode}
+	// Baud Rate at which we want the serial to communicate
+	#define UART_BAUD_RATE 57600
+
+	// Baud Rate = F_CPU / (16*(UBRR+1))
+	#define UBRR ( (F_CPU/16)/UART_BAUD_RATE - 1 )
+	
+	static UART uart0;
+
+	static void UART_buffers_init(void) {
+		//initialize rx_buffer
+		uart0.rx_start = 0;
+		uart0.rx_end = 0;
+		uart0.rx_size = 0;
+	
+		//initialize tx_buffer
+		uart0.tx_start = 0;
+		uart0.tx_end = 0;
+		uart0.tx_size = 0;
+	}
+
+	/*
+	 * UART_Init :
+	 * 	initializes the UART at UART_BAUD_RATE baud rate
+	 */
+	void UART_Init(void){
+		//initializes the global buffers
+		UART_buffers_init();
+
+		uart0.baudrate = UART_BAUD_RATE;
+	
+		//sets baud rate
+		UBRR0H = (uint8_t)((UBRR)>>8);
+		UBRR0L = (uint8_t)UBRR;
+	
+		//enables receiver and transmitter
+			// RXCIE0 : RX Complete Interrupt Enable. Set to allow receive complete interrupts.
+		UCSR0B = (1<<RXEN0)|(1<<TXEN0)|(1<<RXCIE0);
+		//sets frame format: 8data, 2stop bit
+		UCSR0C = (1<<UCSZ01)|(1<<UCSZ00);
+	
+		sei();
+	}
+\end{ccode}
+
+\paragraph{UART Exposed Functions}
+The followings are the exposed functions the CPU can use to enqueue data to be transmitted or get data that has been received.
+\begin{ccode}
+	/*
+	 * UART_TxByte :
+	 *  puts a byte in the transmit buffer
+	 *		then as soon as possible it will be transmitted
+	 *			through the UART module
+	 */
+	void UART_TxByte(uint8_t data) {
+		//loops until there is some space in the buffer
+		while (uart0.tx_size >= UART_BUFFER_SIZE);
+
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		  uart0.tx_buffer[uart0.tx_end] = data;
+		  uart0.tx_end++;
+		  
+		  //if we reached the end of the circular buffer,
+		  	//we go back to the beginning
+			if (uart0.tx_end >= UART_BUFFER_SIZE)
+				uart0.tx_end = 0;
+		
+			uart0.tx_size++;
+		}
+		
+		//activates buffer empty interrupt
+		UCSR0B |= (1<<UDRIE0);
+	}
+
+	/*
+	 * UART_RxByte :
+	 *  gets a byte from the receive buffer
+	 *		@return : the received byte.
+	 */
+	uint8_t UART_RxByte(void) {
+		//loops until there is some data in the buffer
+		while(uart0.rx_size == 0);
+	
+		uint8_t data;
+		
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		  data = uart0.rx_buffer[uart0.rx_start];
+			uart0.rx_start++;
+		
+		  //if we reached the end of the circular buffer,
+		  	//we go back to the beginning
+			if (uart0.rx_start >= UART_BUFFER_SIZE)
+				uart0.rx_start = 0;
+		
+			uart0.rx_size--;
+		}
+		
+		return data;
+	}
+\end{ccode}
+
+\paragraph{Interrupt Service Routines}
+The first ISR is fired upon receipt of a byte, while the second one is fired when the transmit buffer is ready to transmit new data.
+\begin{ccode}
+	//Receive Interrupt Handler
+	ISR(USART0_RX_vect) {
+		//reads the new byte from UDR0,
+			//and writes it in rx_buffer
+	
+		if (uart0.rx_size < UART_BUFFER_SIZE) {
+			uart0.rx_buffer[uart0.rx_end] = UDR0;
+			uart0.rx_end++;
+		
+		  //if we reached the end of the circular buffer,
+		  	//we go back to the beginning
+			if (uart0.rx_end >= UART_BUFFER_SIZE)
+				uart0.rx_end = 0;
+	
+			uart0.rx_size++;
+		}
+	}
+
+	//Data Register Empty (UDRE0) Flag
+		//indicates whether the transmit buffer
+		//is ready to receive new data
+	ISR(USART0_UDRE_vect) {	
+		//if the transmit buffer is empty
+			//disables buffer empty interrupts
+		if( uart0.tx_size == 0 )
+			UCSR0B &= ~(1<<UDRIE0);
+		else {
+			//gets a byte from the tx_buff
+				//adn writes it on UDR0
+			UDR0 = uart0.tx_buffer[uart0.tx_start];
+			uart0.tx_start++;
+	
+			//if we reached the end of the circular buffer,
+				//we go back to the beginning
+			if (uart0.tx_start >= UART_BUFFER_SIZE)
+				uart0.tx_start = 0;
+	
+			uart0.tx_size--;
+		}
+	}
+\end{ccode}
