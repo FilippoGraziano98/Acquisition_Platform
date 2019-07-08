@@ -1,0 +1,9 @@
+\chapter{Introduction}\label{intro_sensor_fusion}
+
+Sensor fusion is a very important technique because almost all sensors have some limitations. It consists in combining sensory data derived from disparate sources such that the resulting information has less uncertainty than would be possible when using the single sources individually.\\
+
+In our scenario we will combine different localization sensors, the encoders and the IMU. In this way each sensor will compensate for the weaknesses of the other and we will calculate a more accurate and robust odometry.\\
+
+More in detail we will use Kalman filtering. This is an algorithm which takes measurements containing statistical noise and produces estimates of unknown variables (in our case we will estimate the position and the orientation of our robot) by updating a joint probability distribution over the variables in each timeframe.
+
+Moreover the Kalman filter is the optimal filter for linear systems with Gaussian noise.

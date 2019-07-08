@@ -1,0 +1,19 @@
+\begin{abstract}
+
+This report completes my Bachelor’s thesis\supercite{Graziano:BscThesis:2019} in which we describe the robot used for our tests and the localization techniques it is using:
+\begin{itemize}
+	\item our robot uses two rotary encoders to measure the wheels rotations and calculate the odometry using Differential Drive;
+	\item it also uses IMU observations to calculate the odometry using IMU Navigation.
+\end{itemize}
+In this report we will show how to use the sensors together in the update of a single global odometry and we will perform sensor fusion based on Kalman filtering.\\
+
+The report is structured as follows:
+\begin{itemize}
+	\item Chapter 1 introduces sensor fusion and Kalman filtering.
+	\item Chapter 2 describes the Kalman filter algorithm.
+	\item Chapter 3 includes a broad description of the transition and the observation model used for our robot.
+	\item Chapter 4 shows the results given by our filter and provides some final considerations.
+	\item The implementation details of the Kalman filter are provided in Appendix A.
+\end{itemize}
+The code for the Kalman Filter is available at \url{https://github.com/FilippoGraziano98/Acquisition_Platform}, where it is integrated with the rest of the code to manage the robot.
+\end{abstract}

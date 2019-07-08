@@ -11,8 +11,8 @@
 #define M_PI 3.141592654
 #define M_180 180
 
-#define WHEEL_RADIUS 0.0255	//meters
-#define BASE_LEN 0.196	//meters
+#define WHEEL_RADIUS 0.027	//meters
+#define BASE_LEN 0.195	//meters
 
 #define METERS_PER_ENCODER_TICK (M_PI*WHEEL_RADIUS / ENCODER_TICKS_FOR_HALF_TURN)
 

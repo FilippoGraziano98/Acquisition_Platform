@@ -1,0 +1,270 @@
+\chapter{Kalman Filter Implementation}\label{kf_implementation}
+
+In this appendix we present the implementation of the Kalman filter.\\
+Since all the Kalman filter is based on matrices, we needed to implement a few primitives to work with matrices and vectors which are presented in the first section. Then we will list the parameters and the global variables of the filter; and finally we wil show the Predict phase and the Update phase.\\
+
+\section{Matrix Operations}
+\begin{ccode}
+	/* VECTORS */
+
+	void vector_print(int size, float v[]);
+
+	//adds two vectors of size len
+	void vector_add(int len, float _a[], float _b[], float dest[]);
+
+	//subtracts two vectors of size len
+	void vector_sub(int len, float _a[], float _b[], float dest[]);
+
+	/* MATRIXES */
+
+	void matrix_print(int rows, int cols, float m[][cols]);
+
+	//set to Identity matrix
+	void matrix_set_identity(int size, float m[][size]);
+
+	//calculates the transpose of matrix s
+	void matrix_transpose(int rows, int cols, float s[][cols], float d[][rows]);
+
+	//multiplies matrix per scalar value
+	void matrix_scalar_mul(int rows, int cols, float m[][cols], float k, float d[][cols]);
+
+	//adds two matrices
+	void matrix_add(int rows, int cols, float _a[][cols], float _b[][cols], float dest[][cols]);
+
+	//subtracts two matrices
+	void matrix_sub(int rows, int cols, float _a[][cols], float _b[][cols], float dest[][cols]);
+
+	//calculates the product of two square matrix
+	void square_matrix_product(int size, float _left_m[][size], float _right_m[][size], float dest_m[][size]);
+
+	//calculates the product of two general size matrix [left_m is r1 x c1, right_m is c1 x c2]
+	void matrix_product(int r1, int c1, int c2, float left_m[][c1], float right_m[][c2], float dest_m[][c2]);
+
+	//calculates the product of a matric and a vector
+	void matrix_vector_product(int rows, int cols, float m[][cols], float _v[], float dest[]);
+
+	//calculates the determinant of a matrix
+	float matrix_determinant(int size, float m[][size]);
+
+	//calculates the inverse of matrix m
+	void matrix_inverse(int size, float m[][size], float inv[][size]);
+\end{ccode}
+
+\section{Parameters and Global Variables}
+\begin{ccode}
+	#define KF_ODOMETRY_UPDATE_RATE 100 // Hz
+	float delta_time = 1./KF_ODOMETRY_UPDATE_RATE; //secs
+
+	//covariance parameters
+	#define PROCESS_NOISE_XY_COV 0.1 // m/s^3
+	#define PROCESS_NOISE_THETA_COV 0.5 // rad/s^2
+
+	#define OBSERV_IMU_ACCL_NOISE_COV 0.1
+	#define OBSERV_IMU_GYRO_NOISE_COV 0.000001
+
+	#define OBSERV_ENC_DXY_NOISE_COV 0.0000001
+	#define OBSERV_ENC_DTHETA_NOISE_COV 0.000001
+
+
+	//KF_STATUS
+	#define KF_STATUS_LEN 8
+
+	//KF_STATUS indexes following
+	#define KF_ODOM_X 0
+	#define KF_TRANS_VEL_X 1
+	#define KF_TRANS_ACCL_X 2
+
+	#define KF_ODOM_Y 3
+	#define KF_TRANS_VEL_Y 4
+	#define KF_TRANS_ACCL_Y 5
+
+	#define KF_ODOM_THETA 6
+	#define KF_ROT_VEL_Z 7
+
+
+	//KF_OBSERVATION
+	#define KF_OBSERVATION_LEN 6
+
+	//KF_OBSERVATION indexes following
+	#define KF_OBS_ENC_DX 0
+	#define KF_OBS_ENC_DY 1
+	#define KF_OBS_ENC_DTHETA 2
+
+	#define KF_OBS_IMU_ACCL_X 3
+	#define KF_OBS_IMU_ACCL_Y 4
+
+	#define KF_OBS_IMU_ROTV_Z 5
+	
+	
+	
+	float dt = delta_time;
+	float dt2_2 = .5*delta_time*delta_time;
+	float dt3_6 = delta_time*delta_time*delta_time / 6.;
+	
+	//TRANSITION_MATRIX
+	float TRANSITION_MATRIX[KF_STATUS_LEN][KF_STATUS_LEN] = 
+		{{1.,dt,dt2_2,0.,0.,0.,0.,0.},
+		{0.,1.,dt,0.,0.,0.,0.,0.},
+		{0.,0.,1.,0.,0.,0.,0.,0.},
+		{0.,0.,0.,1.,dt,dt2_2,0.,0.},
+		{0.,0.,0.,0.,1.,dt,0.,0.},
+		{0.,0.,0.,0.,0.,1.,0.,0.},
+		{0.,0.,0.,0.,0.,0.,1.,dt},
+		{0.,0.,0.,0.,0.,0.,0.,1.}};
+	
+	//TRANSITION_MATRIX_TRANSPOSE
+	float TRANSITION_MATRIX_TRANSPOSE[KF_STATUS_LEN][KF_STATUS_LEN];
+	matrix_transpose(KF_STATUS_LEN, KF_STATUS_LEN, TRANSITION_MATRIX, TRANSITION_MATRIX_TRANSPOSE);
+	
+	
+	
+	//transition noise will be modelled with 3 components:
+		//[third_derivate_x, third_derivate_y, second_derivate_theta]
+	#define TRANSITION_NOISE_LEN 3 //control covariance
+	
+		//PROCESS_NOISE_CONTRIBUTE_MATRIX
+	float process_noise_covariance[TRANSITION_NOISE_LEN][TRANSITION_NOISE_LEN] =
+			{{PROCESS_NOISE_XY_COV, 0., 0.},
+			{0.,PROCESS_NOISE_XY_COV,0.},
+			{0.,0.,PROCESS_NOISE_THETA_COV}};
+	
+	float transition_noise_matrix[KF_STATUS_LEN][TRANSITION_NOISE_LEN] = 
+			{{dt3_6,0.,0.},
+			{dt2_2,0.,0.},
+			{dt,0.,0.},
+			{0.,dt3_6,0.},
+			{0.,dt2_2,0.},
+			{0.,dt,0.},
+			{0.,0.,dt2_2},
+			{0.,0.,dt}};
+	float transition_noise_matrix_transpose[TRANSITION_NOISE_LEN][KF_STATUS_LEN];
+	matrix_transpose(KF_STATUS_LEN, TRANSITION_NOISE_LEN, transition_noise_matrix, transition_noise_matrix_transpose);
+	
+	float aux_cov[KF_STATUS_LEN][TRANSITION_NOISE_LEN];
+	matrix_product(KF_STATUS_LEN, TRANSITION_NOISE_LEN, TRANSITION_NOISE_LEN, transition_noise_matrix, process_noise_covariance, aux_cov);
+	float PROCESS_NOISE_CONTRIBUTE_MATRIX[KF_STATUS_LEN][KF_STATUS_LEN];
+	matrix_product(KF_STATUS_LEN, TRANSITION_NOISE_LEN, KF_STATUS_LEN, aux_cov, transition_noise_matrix_transpose, PROCESS_NOISE_CONTRIBUTE_MATRIX);
+	
+	
+	//OBSERVATION_COVARIANCE_MATRIX
+	float OBSERVATION_COVARIANCE_MATRIX[KF_OBSERVATION_LEN][KF_OBSERVATION_LEN] =
+		{{OBSERV_ENC_DXY_NOISE_COV,0.,0.,0.,0.,0.},
+		{0.,OBSERV_ENC_DXY_NOISE_COV,0.,0.,0.,0.},
+		{0.,0.,OBSERV_ENC_DTHETA_NOISE_COV,0.,0.,0.},
+		{0.,0.,0.,OBSERV_IMU_ACCL_NOISE_COV,0.,0.},
+		{0.,0.,0.,0.,OBSERV_IMU_ACCL_NOISE_COV,0.},
+		{0.,0.,0.,0.,0.,OBSERV_IMU_GYRO_NOISE_COV}};
+\end{ccode}
+\captionof{lstlisting}{Parameters of the Kalman Filter}
+
+\begin{ccode}
+	//STATE
+	float status_mean[KF_STATUS_LEN];
+	float status_covariance[KF_STATUS_LEN][KF_STATUS_LEN];
+
+	//OBSERVATION_MATRIX
+	float observation_matrix[KF_OBSERVATION_LEN][KF_STATUS_LEN];
+\end{ccode}
+\captionof{lstlisting}{Global Variables of the Kalman Filter}
+
+\section{Predict Phase}
+\begin{ccode}
+	//mean = A*mean
+	matrix_vector_product(KF_STATUS_LEN, KF_STATUS_LEN, TRANSITION_MATRIX, status_mean, status_mean);
+	
+	//covariance = A*Cov*A_t
+	square_matrix_product(KF_STATUS_LEN, TRANSITION_MATRIX, status_covariance, status_covariance);
+	square_matrix_product(KF_STATUS_LEN, status_covariance, TRANSITION_MATRIX_TRANSPOSE, status_covariance);
+
+	//covariance += B*Cov_noise*B_t
+	matrix_add(KF_STATUS_LEN, KF_STATUS_LEN, status_covariance, PROCESS_NOISE_CONTRIBUTE_MATRIX, status_covariance);
+\end{ccode}
+
+\section{Update Phase}
+\begin{ccode}
+	//note: obs is an array of KF_OBSERVATION_LEN elements
+	float obs[KF_OBSERVATION_LEN];
+	obs[KF_OBS_ENC_DX] = sens_obs->local_dx;
+	obs[KF_OBS_ENC_DY] = sens_obs->local_dy;
+	obs[KF_OBS_ENC_DTHETA] = sens_obs->local_dtheta;
+	obs[KF_OBS_IMU_ACCL_X] = sens_obs->imu_accel_x;
+	obs[KF_OBS_IMU_ACCL_Y] = sens_obs->imu_accel_y;
+	obs[KF_OBS_IMU_ROTV_Z] = sens_obs->imu_vel_theta;
+
+
+	float sin_theta = sin(status_mean[KF_ODOM_THETA]);
+	float cos_theta = cos(status_mean[KF_ODOM_THETA]);
+	
+	float dt2_2 = .5*delta_time*delta_time;
+	float dt = delta_time;
+	
+	memset(&observation_matrix, 0, sizeof(observation_matrix));
+	
+	//ENCODERS
+	observation_matrix[KF_OBS_ENC_DX][KF_TRANS_VEL_X] = cos_theta*dt;
+	observation_matrix[KF_OBS_ENC_DX][KF_TRANS_ACCL_X] = cos_theta*dt2_2;
+	observation_matrix[KF_OBS_ENC_DX][KF_TRANS_VEL_Y] = sin_theta*dt;
+	observation_matrix[KF_OBS_ENC_DX][KF_TRANS_ACCL_Y] = sin_theta*dt2_2;
+		
+	observation_matrix[KF_OBS_ENC_DY][KF_TRANS_VEL_X] = -sin_theta*dt;
+	observation_matrix[KF_OBS_ENC_DY][KF_TRANS_ACCL_X] = -sin_theta*dt2_2;
+	observation_matrix[KF_OBS_ENC_DY][KF_TRANS_VEL_Y] = cos_theta*dt;
+	observation_matrix[KF_OBS_ENC_DY][KF_TRANS_ACCL_Y] = cos_theta*dt2_2;
+	
+	observation_matrix[KF_OBS_ENC_DTHETA][KF_ROT_VEL_Z] = dt;
+	
+	
+	// IMU
+	//nel reference frame del robot:
+		//	accel_x_local = accel_x_global * cos_theta + accel_y_global * sin_theta
+		//	accel_y_local = -accel_x_global * sin_theta + accel_y_global * cos_theta
+	observation_matrix[KF_OBS_IMU_ACCL_X][KF_TRANS_ACCL_X] = cos_theta;
+	observation_matrix[KF_OBS_IMU_ACCL_X][KF_TRANS_ACCL_Y] = sin_theta;
+	
+	observation_matrix[KF_OBS_IMU_ACCL_Y][KF_TRANS_ACCL_X] = -sin_theta;
+	observation_matrix[KF_OBS_IMU_ACCL_Y][KF_TRANS_ACCL_Y] = cos_theta;
+	
+	observation_matrix[KF_OBS_IMU_ROTV_Z][KF_ROT_VEL_Z] = 1.;
+	
+	//attended observation = C*status_mean
+	float attended_obs[KF_OBSERVATION_LEN];
+	matrix_vector_product(KF_OBSERVATION_LEN, KF_STATUS_LEN, observation_matrix, status_mean, attended_obs);	
+	
+	//K = cov_status*C_T * inverse(cov_noise + C*cov_status*C_T)
+	float K_matrix[KF_STATUS_LEN][KF_OBSERVATION_LEN];
+	
+	float obs_matrix_transpose[KF_STATUS_LEN][KF_OBSERVATION_LEN];
+	matrix_transpose(KF_OBSERVATION_LEN, KF_STATUS_LEN, observation_matrix, obs_matrix_transpose);	
+	
+	float aux_m_5_8[KF_OBSERVATION_LEN][KF_STATUS_LEN];
+	matrix_product(KF_OBSERVATION_LEN, KF_STATUS_LEN, KF_STATUS_LEN, observation_matrix, status_covariance, aux_m_5_8);
+	
+	float aux_m_5_5[KF_OBSERVATION_LEN][KF_OBSERVATION_LEN];
+	matrix_product(KF_OBSERVATION_LEN, KF_STATUS_LEN, KF_OBSERVATION_LEN, aux_m_5_8, obs_matrix_transpose, aux_m_5_5);
+	
+	matrix_add(KF_OBSERVATION_LEN, KF_OBSERVATION_LEN, OBSERVATION_COVARIANCE_MATRIX, aux_m_5_5, aux_m_5_5);
+	
+	matrix_inverse(KF_OBSERVATION_LEN, aux_m_5_5, aux_m_5_5);
+	
+	float aux_m_8_5[KF_STATUS_LEN][KF_OBSERVATION_LEN];
+	matrix_product(KF_STATUS_LEN, KF_OBSERVATION_LEN, KF_OBSERVATION_LEN, obs_matrix_transpose, aux_m_5_5, aux_m_8_5);
+	
+	matrix_product(KF_STATUS_LEN, KF_STATUS_LEN, KF_OBSERVATION_LEN, status_covariance, aux_m_8_5, K_matrix);
+	
+	// status_mean += K_matrix * (obs - attended_obs)
+	float delta_obs[KF_OBSERVATION_LEN];
+	vector_sub(KF_OBSERVATION_LEN, obs, attended_obs, delta_obs);
+	
+	float delta_status[KF_STATUS_LEN];
+	matrix_vector_product(KF_STATUS_LEN, KF_OBSERVATION_LEN, K_matrix, delta_obs, delta_status);
+	
+	vector_add(KF_STATUS_LEN, status_mean, delta_status, status_mean);
+	
+	//status_covariance -= (K_matrix*C ) * status_covariance
+	float aux_m_8_8[KF_STATUS_LEN][KF_STATUS_LEN];
+	matrix_product(KF_STATUS_LEN, KF_OBSERVATION_LEN, KF_STATUS_LEN, K_matrix, observation_matrix, aux_m_8_8);
+
+	square_matrix_product(KF_STATUS_LEN, aux_m_8_8, status_covariance, aux_m_8_8);
+
+	matrix_sub(KF_STATUS_LEN, KF_STATUS_LEN, status_covariance, aux_m_8_8, status_covariance);
+\end{ccode}

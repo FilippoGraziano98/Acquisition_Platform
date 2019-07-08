@@ -23,3 +23,4 @@ Acquisition_Platform/firmware_build/*
 *.bbl
 *.blg
 docs/thesis/pseudocode/*
+*.ggb

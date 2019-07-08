@@ -89,9 +89,9 @@ static void KalmanFilter_matrix_init(void) {
 	
 	//PROCESS_NOISE_CONTRIBUTE_MATRIX
 	float process_noise_covariance[TRANSITION_NOISE_LEN][TRANSITION_NOISE_LEN] =
-			{{PROCESS_NOISE_COV, 0., 0.},
-			{0.,PROCESS_NOISE_COV,0.},
-			{0.,0.,PROCESS_NOISE_COV}};
+			{{PROCESS_NOISE_XY_COV, 0., 0.},
+			{0.,PROCESS_NOISE_XY_COV,0.},
+			{0.,0.,PROCESS_NOISE_THETA_COV}};
 	
 	float dt3_6 = KF_odom.delta_time*KF_odom.delta_time*KF_odom.delta_time / 6.;
 	float dt2_2 = .5*KF_odom.delta_time*KF_odom.delta_time;
